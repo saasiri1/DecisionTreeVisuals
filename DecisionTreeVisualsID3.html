@@ -1,0 +1,765 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision Trees and Random Forests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: a lecture video player — header, 16:9 animated SVG stage with narration caption, transport bar, chapter list */
+:root{
+  --bg:#EEF1EE; --surface:#FFFFFF; --stage:#FBFCFA; --ink:#18211C; --muted:#5E6A63; --line:#D5DCD6;
+  --accent:#2F5BB0; --on-accent:#FFFFFF; --yes:#23855A; --no:#CC5236; --on-tok:#FFFFFF;
+  --yes-tint:rgba(35,133,90,.14); --no-tint:rgba(204,82,54,.13); --accent-tint:rgba(47,91,176,.10);
+  --accent-2:#6B4FC8; --shadow:rgba(16,32,24,.10); --dot:#D9E0DA;
+  --display:"Familjen Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1311; --surface:#151C18; --stage:#111714; --ink:#E4EBE6; --muted:#97A49C; --line:#29332D;
+  --accent:#8EAEF0; --on-accent:#0E1311; --yes:#53C38D; --no:#EF8567; --on-tok:#0E1311;
+  --yes-tint:rgba(83,195,141,.17); --no-tint:rgba(239,133,103,.16); --accent-tint:rgba(142,174,240,.12);
+  --accent-2:#B9A2F7; --shadow:rgba(0,0,0,.45); --dot:#1D2621;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1311; --surface:#151C18; --stage:#111714; --ink:#E4EBE6; --muted:#97A49C; --line:#29332D;
+  --accent:#8EAEF0; --on-accent:#0E1311; --yes:#53C38D; --no:#EF8567; --on-tok:#0E1311;
+  --yes-tint:rgba(83,195,141,.17); --no-tint:rgba(239,133,103,.16); --accent-tint:rgba(142,174,240,.12);
+  --accent-2:#B9A2F7; --shadow:rgba(0,0,0,.45); --dot:#1D2621;
+  color-scheme:dark}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:var(--body);font-size:16px;
+  background:radial-gradient(1100px 520px at 8% -8%,var(--accent-tint),transparent 62%),radial-gradient(900px 460px at 104% 4%,var(--yes-tint),transparent 60%),var(--bg);background-attachment:fixed}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.brand{display:flex;gap:14px;align-items:center}
+.logo{flex:none;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 8px 22px -8px var(--accent)}
+.hdr-r{display:flex;gap:10px;align-items:center}
+.pill{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+.eyebrow{font:600 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,3vw,32px);margin:4px 0 0;text-wrap:balance;letter-spacing:-.01em}
+.counter{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.player{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 1px 2px var(--shadow),0 18px 48px -18px var(--shadow)}
+#stage{display:block;width:100%;height:auto;max-height:76vh;background:var(--stage)}
+.caption{border-top:1px solid var(--line);padding:14px 22px 16px 26px;min-height:6.6em;display:flex;flex-direction:column;gap:6px;position:relative}
+.caption::before{content:"";position:absolute;left:0;top:14px;bottom:16px;width:4px;border-radius:0 4px 4px 0;background:linear-gradient(var(--accent),var(--accent-2))}
+.cap-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.cap-n{font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cap-say.swap,.cap-ch.swap{animation:capIn .55s cubic-bezier(.2,.7,.2,1) both}
+@keyframes capIn{from{opacity:0;transform:translateY(6px)}}
+.cap-ch{font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.cap-say{font-size:clamp(15px,1.6vw,19px);line-height:1.55;max-width:75ch;margin:0}
+.player:fullscreen{display:flex;flex-direction:column;justify-content:center;border-radius:0;border:0}
+.player:fullscreen #stage{max-height:calc(100vh - 170px)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.btn{font:600 14px var(--body);padding:8px 14px;border-radius:10px;transition:border-color .15s,background .15s,transform .1s;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn svg{width:16px;height:16px;flex:none}
+.btn:focus-visible,.chap:focus-visible,select:focus-visible,.seg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:var(--on-accent);min-width:110px;justify-content:center;box-shadow:0 6px 16px -8px var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.icon{padding:8px 10px}
+.btn[aria-pressed="true"]{background:var(--accent-tint);border-color:var(--accent);color:var(--accent)}
+.progress{flex:1 1 220px;display:flex;gap:3px;height:8px;min-width:0}
+.seg{flex:1;background:var(--line);border-radius:4px;position:relative;overflow:hidden;cursor:pointer;border:0;padding:0;transition:transform .15s}
+.seg:hover{transform:scaleY(1.6)}
+.seg[hidden]{display:none}
+.seg i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--accent),var(--accent-2));width:0}
+select{font:500 14px var(--body);padding:7px 8px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.chapters{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;list-style:none;margin:0;padding:0;counter-reset:ch}
+.chap{width:100%;text-align:left;display:flex;gap:10px;align-items:baseline;font:500 14px var(--body);padding:9px 12px;border-radius:10px;transition:border-color .15s,background .15s;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chap b{font:600 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.chap.on{border-color:var(--accent);background:var(--accent-tint)}
+.chap.on b{color:var(--accent)}
+.chap:hover{border-color:var(--accent)}
+.chap.done b{color:var(--yes)}
+.chap.done b::after{content:" ✓"}
+.note{font-size:14px;color:var(--muted);line-height:1.5;max-width:90ch;margin:0}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding-top:16px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+.foot a{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-weight:600}
+.foot a:hover{text-decoration:underline}
+.foot a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+kbd{font:500 12px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+
+/* SVG stage */
+#stage text{white-space:pre;fill:var(--ink);font-family:var(--body);font-size:18px}
+#stage .h1{font-family:var(--display);font-weight:700;font-size:54px;letter-spacing:-.5px}
+#stage .h2{font-family:var(--display);font-weight:600;font-size:27px}
+#stage .h3{font-family:var(--display);font-weight:600;font-size:20px}
+#stage .mono{font-family:var(--mono);font-size:18px}
+#stage .s{font-size:15px}
+#stage .l{font-size:22px}
+#stage .xl{font-size:30px}
+#stage .bold{font-weight:600}
+#stage .m{fill:var(--muted)}
+#stage .acc{fill:var(--accent)}
+#stage .yes-t{fill:var(--yes)}
+#stage .no-t{fill:var(--no)}
+#stage .mid{text-anchor:middle}
+#stage .end{text-anchor:end}
+#stage .tk.yes{fill:var(--yes)} #stage .tk.no{fill:var(--no)}
+#stage .tk{stroke:var(--stage);stroke-width:1.5}
+.dot{fill:var(--dot)}
+.g-a{stop-color:var(--accent)} .g-b{stop-color:var(--accent-2)}
+#sh feDropShadow{flood-color:var(--shadow);flood-opacity:1}
+#stage .tk-t{fill:var(--on-tok);font-family:var(--mono);font-weight:600;text-anchor:middle;dominant-baseline:central}
+.chip{fill:none;stroke:var(--line)} .chip.on{fill:var(--accent);stroke:var(--accent)} .chip.done{fill:var(--accent-tint);stroke:none}
+#stage .chip-t{font-size:14px;font-weight:600;fill:var(--muted)} #stage .chip-t.on{fill:var(--on-accent)}
+.thead{fill:var(--accent-tint)} .rowline{stroke:var(--line);stroke-width:1}
+.colhi{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1.5}
+.panel{fill:var(--surface);stroke:var(--line);filter:url(#sh)}
+.bucket{fill:var(--surface);stroke:var(--line);stroke-width:1.5;filter:url(#sh)}
+.badge{fill:var(--yes)} #stage .badge-t{fill:var(--on-tok);font-size:13px;font-weight:600}
+.bucket.pure{stroke:var(--yes);stroke-width:2}
+.boxacc{fill:color-mix(in srgb,var(--accent) 10%,var(--surface));stroke:var(--accent);stroke-width:2;filter:url(#sh)}
+.axis{stroke:var(--muted);stroke-width:1.2;fill:none} .grid{stroke:var(--line);stroke-width:1}
+.curve{stroke:var(--accent);stroke-width:3;fill:none}
+.fill-m{fill:var(--muted)} .fill-yes{fill:var(--yes)} .fill-no{fill:var(--no)} .fill-acc{fill:var(--accent)}
+.mtr-base{fill:var(--line)} .mtr-after{fill:var(--muted)} .mtr-gain{fill:url(#gainGrad)}
+.bar-m{fill:var(--muted);opacity:.55} .bar-w{fill:url(#gainGrad)}
+.edge{stroke:var(--muted);stroke-width:2;fill:none;stroke-linecap:round} .edge.path{stroke:var(--accent);stroke-width:5;filter:url(#glow)}
+.flow{fill:none;stroke:var(--on-accent);stroke-width:2;stroke-linecap:round;stroke-dasharray:3 11;opacity:.9;animation:flow .9s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-14}}
+.pulse{fill:none;stroke:var(--accent);stroke-width:2.5;transform-box:fill-box;transform-origin:center;animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{from{transform:scale(1);opacity:.85}to{transform:scale(2.6);opacity:0}}
+.tag{fill:var(--surface);stroke:var(--accent);stroke-width:1.2}
+.elab{fill:var(--stage)}
+.n-attr{fill:var(--surface);stroke:var(--ink);stroke-width:2;filter:url(#sh)}
+.n-attr.path{stroke:var(--accent);stroke-width:4}
+.n-pend{fill:var(--stage);stroke:var(--muted);stroke-width:2;stroke-dasharray:7 5}
+.n-yes{fill:color-mix(in srgb,var(--yes) 14%,var(--surface));stroke:var(--yes);stroke-width:2;filter:url(#sh)} .n-no{fill:color-mix(in srgb,var(--no) 13%,var(--surface));stroke:var(--no);stroke-width:2;filter:url(#sh)}
+.n-yes.path,.n-no.path{stroke-width:5}
+.dash{stroke:var(--muted);stroke-dasharray:5 5;stroke-width:1.5;fill:none}
+#layer [data-k].enter{animation:enter .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0ms)}
+@keyframes enter{from{opacity:0;transform:translateY(10px)}}
+#layer .enter .edge[pathLength]{stroke-dasharray:1 1;stroke-dashoffset:1;animation:draw .9s cubic-bezier(.4,0,.2,1) forwards;animation-delay:calc(var(--d,0ms) + 120ms)}
+@keyframes draw{to{stroke-dashoffset:0}}
+#layer .enter .grow{transform-box:fill-box;transform-origin:0 50%;animation:grow 1s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d,0ms) + 250ms)}
+#layer .enter .grow.late{animation-delay:calc(var(--d,0ms) + 1150ms)}
+@keyframes grow{from{transform:scaleX(0)}}
+#layer .enter .win{animation:win 1.4s ease-in-out 2;animation-delay:calc(var(--d,0ms) + 700ms)}
+@keyframes win{50%{stroke-width:6}}
+#ghost{animation:fadeout .35s ease both;pointer-events:none}
+@keyframes fadeout{to{opacity:0}}
+@media (prefers-reduced-motion: reduce){#layer [data-k].enter,#layer .enter .grow,#layer .enter .win,.flow,.pulse,.cap-say.swap,.cap-ch.swap{animation:none}#layer .enter .edge[pathLength]{animation:none;stroke-dasharray:none}#ghost{display:none}}
+@media (max-width:600px){.caption{padding:12px 14px 12px 18px}.bar{padding:10px}.logo{width:42px;height:42px}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="2.5" width="7" height="5" rx="1.5"/><rect x="2.5" y="16.5" width="7" height="5" rx="1.5"/><rect x="14.5" y="16.5" width="7" height="5" rx="1.5"/><path d="M12 7.5v3.5M6 16.5v-2a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2"/></svg></div>
+      <div>
+        <div class="eyebrow">Chapters 2.5–2.6 · Decision Tree (ID3) · Random Forest</div>
+        <h1>From data to a decision tree, then to a random forest</h1>
+      </div>
+    </div>
+    <div class="hdr-r">
+      <div class="pill" id="counter">Scene 1 / 1</div>
+      <button class="btn icon" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
+    </div>
+  </header>
+
+  <section class="player" id="player" aria-label="Animated walkthrough">
+    <svg id="stage" viewBox="0 0 1280 720" role="img" aria-labelledby="capSay">
+      <defs>
+        <filter id="sh" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="5"/></filter>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <radialGradient id="shine" cx="35%" cy="28%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="gainGrad" x1="0" x2="1"><stop offset="0" class="g-a"/><stop offset="1" class="g-b"/></linearGradient>
+        <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="1.1" class="dot"/></pattern>
+        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fill-m"/></marker></defs>
+      <rect width="1280" height="720" fill="url(#dots)"/>
+      <g id="ghost"></g>
+      <g id="layer"></g>
+    </svg>
+    <div class="caption">
+      <div class="cap-top"><div class="cap-ch" id="capCh"></div><div class="cap-n" id="capN"></div></div>
+      <p class="cap-say" id="capSay" aria-live="polite"></p>
+    </div>
+    <div class="bar">
+      <button class="btn" id="prev" aria-label="Previous scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
+      <button class="btn primary" id="play">▶ Play</button>
+      <button class="btn" id="next" aria-label="Next scene">Next<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <label class="counter" for="mode">Lesson</label>
+      <select id="mode"><option value="process" selected>Process animation</option><option value="detail">Full calculations</option></select>
+      <div class="progress" id="progress"></div>
+      <label class="counter" for="speed">Speed</label>
+      <select id="speed"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select>
+      <button class="btn icon" id="fs" title="Fullscreen (F)" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    </div>
+  </section>
+
+  <ol class="chapters" id="chapters"></ol>
+  <footer class="foot">
+    <span>© 2026 Sultan Asiri. All rights reserved.</span>
+    <a href="https://saasiri1.github.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>saasiri1.github.io</a>
+  </footer>
+</div>
+
+<script>
+/* ---------- data from the slides (Decision Tree: Where to Split the Data?) ---------- */
+const RAW=[[1,'High','Medium','Sunny','False','No'],[2,'High','High','Sunny','True','No'],[3,'Low','Low','Rain','True','No'],[4,'Medium','High','Sunny','False','No'],[5,'Low','Medium','Rain','True','No'],[6,'High','Medium','Overcast','False','Yes'],[7,'Low','High','Rain','False','Yes'],[8,'Low','Medium','Rain','False','Yes'],[9,'Low','Low','Overcast','True','Yes'],[10,'Low','Low','Sunny','False','Yes'],[11,'Medium','Medium','Rain','False','Yes'],[12,'Medium','Low','Sunny','True','Yes'],[13,'Medium','High','Overcast','True','Yes'],[14,'High','Low','Overcast','False','Yes']];
+const ALL=RAW.map(r=>({id:r[0],Temperature:r[1],Humidity:r[2],Outlook:r[3],Wind:r[4],Play:r[5]}));
+const ORDER={Outlook:['Sunny','Overcast','Rain'],Temperature:['High','Medium','Low'],Humidity:['High','Medium','Low'],Wind:['False','True']};
+const byId=id=>ALL.find(r=>r.id===id);
+const SUNNY=ALL.filter(r=>r.Outlook==='Sunny'), RAIN=ALL.filter(r=>r.Outlook==='Rain');
+const lg=Math.log2;
+const cnt=rs=>({y:rs.filter(r=>r.Play==='Yes').length,n:rs.filter(r=>r.Play==='No').length});
+const ent=rs=>{const{y,n}=cnt(rs),t=y+n;return [y,n].filter(c=>c>0).reduce((s,c)=>s-(c/t)*lg(c/t),0)};
+const parts=(rs,a)=>ORDER[a].map(v=>({v,rows:rs.filter(r=>r[a]===v)})).filter(p=>p.rows.length);
+const info=(rs,a)=>parts(rs,a).reduce((s,p)=>s+p.rows.length/rs.length*ent(p.rows),0);
+const f3=x=>Math.abs(x)<5e-4?'0':x.toFixed(3);
+const eq=(terms,total)=>Math.abs(terms.reduce((s,t)=>s+(+f3(t)),0)-(+f3(total)))<1e-9?'=':'≈';
+
+/* ---------- svg helpers ---------- */
+const K=(k,inner,x,y)=>`<g data-k="${k}"${x!=null?` data-x="${x}" data-y="${y}"`:''}>${inner}</g>`;
+const T=(x,y,s,cls='')=>`<text x="${x}" y="${y}" class="${cls}">${s}</text>`;
+const R=(x,y,w,h,cls,rx=10)=>`<rect x="${x}" y="${y}" width="${Math.max(0,w)}" height="${h}" rx="${rx}" class="${cls}"/>`;
+const tok=(id,x,y,r=14)=>K('r'+id,`<circle cx="${x}" cy="${y}" r="${r}" class="tk ${byId(id).Play==='Yes'?'yes':'no'}"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#shine)"/><text x="${x}" y="${y+0.5}" class="tk-t" style="font-size:${Math.round(r*0.95)}px">${id}</text>`,x,y);
+
+const STEPS=['Class entropy','Weighted entropy','Information gain','Pick highest gain','Repeat on impure','Pure → leaf'];
+function strip(active){
+  let s='';
+  STEPS.forEach((t,i)=>{const x=40+i*203,on=i+1===active,done=active&&i+1<active;
+    s+=R(x,12,193,34,'chip '+(on?'on':done?'done':''),17)+`<text x="${x+16}" y="29.5" class="chip-t ${on?'on':''}" dominant-baseline="central">${i+1}  ${t}</text>`});
+  return K('strip',s);
+}
+
+/* data table: tokens sit in the # column */
+const COLS=[['#',58],['Temperature',150],['Humidity',130],['Outlook',130],['Wind',100],['Play',84]];
+function table(rs,o={}){
+  const x0=o.x??40,y0=o.y??80,rh=o.rh??31;let s='',xs=[],x=x0;
+  COLS.forEach(([,w])=>{xs.push(x);x+=w});const W=x-x0,H=34+rs.length*rh;
+  if(o.hi){const ci=COLS.findIndex(c=>c[0]===o.hi);s+=K('colhi-'+o.hi+rs.length,R(xs[ci]-2,y0-4,COLS[ci][1]+4,H+8,'colhi',8))}
+  s+=K('thead',R(x0,y0,W,34,'thead',8)+COLS.map(([n],i)=>T(xs[i]+(i?12:14),y0+23,n,'bold s'+(n===o.hi?' acc':''))).join(''),x0,y0);
+  rs.forEach((r,i)=>{const cy=y0+34+i*rh+rh/2;
+    s+=K(`rl${r.id}`,`<line x1="${x0}" x2="${x0+W}" y1="${cy+rh/2}" y2="${cy+rh/2}" class="rowline"/>`,x0,cy);
+    COLS.slice(1).forEach(([n],j)=>{const v=r[n],cls=n==='Play'?(v==='Yes'?'yes-t bold':'no-t bold'):(n===o.hi?'bold acc':(o.dim?'m':''));
+      s+=K(`c${r.id}-${j}`,`<text x="${xs[j+1]+12}" y="${cy}" dominant-baseline="central" class="${cls}" style="font-size:16px">${v}</text>`,xs[j+1],cy)});
+    if(!o.noTok)s+=tok(r.id,xs[0]+29,cy,12);
+  });
+  return s;
+}
+
+/* entropy of one group, as two printed lines */
+function hLines(rs){
+  const{y,n}=cnt(rs),t=y+n;
+  if(!y||!n){const c=y||n;return[`H = −(${c}/${t})·log₂(${c}/${t}) = 0`,'one class only → pure']}
+  const ty=-(y/t)*lg(y/t),tn=-(n/t)*lg(n/t);
+  return[`H = −(${y}/${t})log₂(${y}/${t}) − (${n}/${t})log₂(${n}/${t})`,`  = ${f3(ty)} + ${f3(tn)} ${eq([ty,tn],ty+tn)} ${f3(ty+tn)}`];
+}
+function iLines(rs,a){
+  const ps=parts(rs,a),N=rs.length,terms=ps.map(p=>p.rows.length/N*ent(p.rows)),I=info(rs,a);
+  return[`I(${a}) = `+ps.map(p=>`(${p.rows.length}/${N})·${f3(ent(p.rows))}`).join(' + '),`${' '.repeat(a.length+3)} = `+terms.map(f3).join(' + ')+` ${eq(terms,I)} ${f3(I)}`];
+}
+
+/* gain meter: entropy before vs after the split */
+function meter(rs,a,y,name){
+  const x0=40,sc=1000,base=ent(rs),I=info(rs,a),g=base-I,k=`mt-${a}-${rs.length}`;
+  let s=R(x0,y,base*sc,36,'mtr-base grow',6)+R(x0,y,I*sc,36,'mtr-after grow',6)+R(x0+I*sc,y,g*sc,36,'mtr-gain grow late',6);
+  s+=T(x0,y-12,`after split: I(${a}) = ${f3(I)}`,'mono s m');
+  s+=T(x0+base*sc,y-12,`gain = ${f3(g)}`,'mono s acc bold end');
+  s+=T(x0+base*sc+14,y+24,`before: H(${name}) = ${f3(base)}`,'mono s m');
+  [0,.25,.5,.75,1].forEach(v=>{s+=`<line x1="${x0+v*sc}" x2="${x0+v*sc}" y1="${y+40}" y2="${y+46}" class="axis"/>`+T(x0+v*sc,y+64,v.toFixed(2),'mono s m mid')});
+  s+=T(x0+500,y+90,'entropy in bits','s m mid');
+  return K(k,s);
+}
+
+/* split the rows of a group into buckets by attribute a */
+function splitView(rs,a,o={}){
+  const name=o.name||'S',ps=parts(rs,a),n=ps.length,gap=24,w=(1200-gap*(n-1))/n,N=rs.length,base=ent(rs);
+  const show=o.showH===true?ps.map(p=>p.v):(o.showH||[]);
+  let s=K(`svt-${a}-${N}`,T(40,88,`Split ${name} (${N} days) by ${a}`,'h2'));
+  s+=K(`svb-${N}`,T(1240,88,`H(${name}) = ${f3(base)}`,'mono end m'));
+  ps.forEach((p,i)=>{
+    const x=40+i*(w+gap),y=108,c=cnt(p.rows),pure=!c.y||!c.n,hs=show.includes(p.v);
+    s+=K(`bk-${a}-${p.v}-${N}`,R(x,y,w,120,'bucket'+(hs&&pure?' pure':''),12)+T(x+18,y+32,`${a} = ${p.v}`,'h3')+T(x+w-18,y+32,`${c.y} Yes · ${c.n} No`,'mono s end m'));
+    if(hs&&pure)s+=K(`bpure-${a}-${p.v}-${N}`,R(x+w-96,y+74,78,26,'badge',13)+T(x+w-57,y+92,'✓ pure','badge-t mid'));
+    if(o.showP)s+=K(`bp-${a}-${p.v}-${N}`,T(x+w-18,y+60,`weight ${p.rows.length}/${N}`,'mono s acc bold end'));
+    p.rows.forEach((r,j)=>{s+=tok(r.id,x+34+j*38,y+86,14)});
+    if(hs){const[l1,l2]=hLines(p.rows);s+=K(`bh-${a}-${p.v}-${N}`,T(x+4,y+152,l1,'mono s')+T(x+4,y+178,l2,'mono s '+(pure?'yes-t bold':'bold')))}
+  });
+  if(o.showI){const[l1,l2]=iLines(rs,a);s+=K(`il-${a}-${N}`,T(40,346,l1,'mono')+T(40,376,l2,'mono bold'))}
+  if(o.showGain){const I=info(rs,a),g=base-I;
+    s+=K(`gl-${a}-${N}`,T(40,428,`Gain(${a}) = H(${name}) − I(${a}) = ${f3(base)} − ${f3(I)} ${eq([base,-I],g)} ${f3(g)}`,'mono l bold acc'));
+    s+=meter(rs,a,486,name)}
+  return s;
+}
+
+/* compare the gains of several attributes on one group */
+function gainsChart(rs,attrs,name,note){
+  const base=ent(rs),items=attrs.map(a=>({a,I:info(rs,a),g:base-info(rs,a)})),best=items.reduce((b,x)=>x.g>b.g?x:b),bx=270,bw=760;
+  let s=K(`gc-t-${rs.length}`,T(40,96,`Information gain on ${name} (${rs.length} days)`,'h2')+T(40,124,`Each bar = H(${name}) − I(attribute). The longest bar wins.`,'s m'));
+  s+=K(`gc-ax-${rs.length}`,`<line x1="${bx}" x2="${bx}" y1="150" y2="${160+items.length*70}" class="axis"/><line x1="${bx+bw}" x2="${bx+bw}" y1="150" y2="${160+items.length*70}" class="dash"/>`+T(bx+bw,146,`max possible = ${f3(base)}`,'mono s m end'));
+  items.forEach((it,i)=>{const y=170+i*70,wv=Math.max(3,it.g/base*bw),win=it===best;
+    s+=K(`gc-${it.a}-${rs.length}`,T(40,y+25,it.a,'h3'+(win?' acc':''))+R(bx,y,wv,38,(win?'bar-w':'bar-m')+' grow',5)+T(bx+wv+12,y+25,`${f3(it.g)}`,'mono bold'+(win?' acc':''))+T(bx+wv+(f3(it.g).length*11)+26,y+25,`(I = ${f3(it.I)})`,'mono s m'))});
+  const yb=190+items.length*70;
+  s+=K(`gc-win-${rs.length}`,R(40,yb,1200,64,'boxacc win',12)+T(64,yb+41,`Highest gain: ${best.a} (${f3(best.g)}) → ${best.a} becomes the ${name==='S'?'root node':'node on this branch'}`,'h3 acc'));
+  if(note)s+=K(`gc-n-${rs.length}`,T(40,yb+104,note,'s m'));
+  return s;
+}
+
+/* the tree */
+const TN={root:[640,128],sunny:[270,346],over:[640,346],rain:[1010,346],sH:[130,566],sM:[270,566],sL:[410,566],rF:[910,566],rT:[1110,566]};
+const ROWS={root:ALL,sunny:SUNNY,over:ALL.filter(r=>r.Outlook==='Overcast'),rain:RAIN,
+  sH:SUNNY.filter(r=>r.Humidity==='High'),sM:SUNNY.filter(r=>r.Humidity==='Medium'),sL:SUNNY.filter(r=>r.Humidity==='Low'),
+  rF:RAIN.filter(r=>r.Wind==='False'),rT:RAIN.filter(r=>r.Wind==='True')};
+const EDGES=[['root','sunny','Sunny'],['root','over','Overcast'],['root','rain','Rain'],['sunny','sH','High'],['sunny','sM','Medium'],['sunny','sL','Low'],['rain','rF','False'],['rain','rT','True']];
+function treeView(st){
+  const path=st.path||[],vis=new Set(st.root==='pend'?['root']:['root','sunny','over','rain']);
+  if(st.sunny==='split')['sH','sM','sL'].forEach(v=>vis.add(v));
+  if(st.rain==='split')['rF','rT'].forEach(v=>vis.add(v));
+  const kind=id=>id==='root'?(st.root==='pend'?'pend':'attr'):id==='sunny'?(st.sunny==='split'?'attr':'pend'):id==='rain'?(st.rain==='split'?'attr':'pend'):id==='over'?(st.over==='leaf'?'leaf':'pend'):'leaf';
+  const size=id=>kind(id)==='leaf'?[124,50]:[196,56];
+  const label={root:'Outlook',sunny:'Humidity',rain:'Wind'};
+  const gainTxt={root:'gain 0.247',sunny:'gain 0.971',rain:'gain 0.971'};
+  let s='';
+  EDGES.filter(([p,c])=>vis.has(p)&&vis.has(c)).forEach(([p,c,l])=>{
+    const[x1,y1]=TN[p],[x2,y2]=TN[c],on=path.includes(p)&&path.includes(c),y1b=y1+size(p)[1]/2,y2t=y2-size(c)[1]/2,mx=(x1+x2)/2,my=(y1b+y2t)/2,lw=l.length*9+18;
+    const d=`M${x1} ${y1b}C${x1} ${my},${x2} ${my},${x2} ${y2t}`;
+    s+=K(`e-${c}`,`<path d="${d}" pathLength="1" class="edge${on?' path':''}"/>`+(on?`<path d="${d}" class="flow"/>`:'')+R(mx-lw/2,my-13,lw,26,'elab',6)+T(mx,my+6,l,'s mid bold'+(on?' acc':' m')))});
+  [...vis].forEach(id=>{const[x,y]=TN[id],[w,h]=size(id),k=kind(id),on=path.includes(id);let inner;
+    if(k==='attr')inner=R(x-w/2,y-h/2,w,h,'n-attr'+(on?' path':''),12)+T(x,y+8,label[id],'h3 mid')+T(x+w/2+12,y+6,gainTxt[id],'mono s acc');
+    else if(k==='pend'){const H=ent(ROWS[id]);inner=R(x-w/2,y-h/2,w,h,'n-pend',12)+T(x,y-3,id==='root'?'S: all 14 days':H?'still mixed':'pure','s mid m bold')+T(x,y+17,`H = ${f3(H)}`,'mono s mid'+(H?'':' yes-t'))}
+    else{const y_=cnt(ROWS[id]).y>0,lab=y_?'Yes':'No';inner=R(x-w/2,y-h/2,w,h,(y_?'n-yes':'n-no')+(on?' path':''),10)+T(x,y+8,lab,'h3 mid '+(y_?'yes-t':'no-t'))}
+    s+=K(`n-${id}-${k}`,inner);
+    if(k!=='attr'&&st.tokens!==false){const rs=ROWS[id];rs.forEach((r,j)=>{const per=id==='root'?7:5,row=Math.floor(j/per),inRow=Math.min(per,rs.length-row*per),cx=x-(inRow-1)*13+(j%per)*26;s+=tok(r.id,cx,y+h/2+26+row*28,11)})}
+  });
+  if(st.cands){const c=CANDS[st.cands];s+=candBox(c[0],c[1],c[2],c[3],c[4])}
+  if(st.note)s+=K('tn-'+st.note,T(1240,700,st.note,'s m end'));
+  return s;
+}
+const CANDS={root:[ALL,['Temperature','Humidity','Outlook','Wind'],40,64,'Root: gain of each attribute'],
+  sunny:[SUNNY,['Temperature','Humidity','Wind'],40,64,'Sunny branch: gain'],
+  rain:[RAIN,['Temperature','Humidity','Wind'],940,64,'Rain branch: gain']};
+function candBox(rs,attrs,x,y,title){
+  const base=ent(rs),it=attrs.map(a=>({a,g:base-info(rs,a)})),best=it.reduce((b,v)=>v.g>b.g?v:b),w=300,h=48+it.length*26;
+  let s=R(x,y,w,h,'panel',10)+T(x+14,y+26,title,'s bold m');
+  it.forEach((v,i)=>{const yy=y+56+i*26,win=v===best;
+    s+=T(x+14,yy,v.a,'s'+(win?' acc bold':''))+R(x+122,yy-11,Math.max(2,v.g/base*90),12,(win?'bar-w':'bar-m')+' grow',3)+T(x+w-14,yy,f3(v.g)+(win?' ✓':'  '),'mono s end'+(win?' acc bold':''))});
+  return K('cb-'+title,s);
+}
+
+function dayCard(d,checked,pred,x=40,y=64){
+  const keys=['Outlook','Temperature','Humidity','Wind'];
+  let s=R(x,y,262,186,'panel',12)+T(x+18,y+32,'New day','h3');
+  keys.forEach((k,i)=>{const on=checked.includes(k);s+=T(x+18,y+64+i*25,`${k}:`,'s'+(on?' acc bold':' m'))+T(x+130,y+64+i*25,d[k],'mono s'+(on?' acc bold':''))});
+  if(pred)s+=T(x+18,y+172,`Prediction: ${pred}`,'h3 '+(pred==='Yes'?'yes-t':'no-t'));
+  return K('day-'+d.Outlook,s);
+}
+
+/* entropy curve */
+function curve(p,label){
+  const X=v=>720+v*480,Y=v=>540-v*370;let d='';
+  for(let i=0;i<=120;i++){const q=i/120,h=q===0||q===1?0:-(q*lg(q)+(1-q)*lg(1-q));d+=(i?'L':'M')+X(q).toFixed(1)+' '+Y(h).toFixed(1)}
+  let s=`<line x1="${X(0)}" x2="${X(1)}" y1="${Y(0)}" y2="${Y(0)}" class="axis"/><line x1="${X(0)}" x2="${X(0)}" y1="${Y(0)}" y2="${Y(1)-10}" class="axis"/>`;
+  [.5,1].forEach(v=>{s+=`<line x1="${X(0)}" x2="${X(1)}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/>`+T(X(0)-10,Y(v)+5,v.toFixed(1),'mono s m end')});
+  [0,.2,.4,.5,.6,.8,1].forEach(v=>{s+=T(X(v),Y(0)+26,String(v),'mono s m mid')});
+  s+=T(X(0)-10,Y(0)+5,'0','mono s m end')+`<path d="${d}" class="curve"/>`+T(X(.5),Y(0)+56,'p = share of one class','s m mid')+T(X(0),Y(1)-24,'H (bits)','s m bold');
+  let out=K('curve',s);
+  if(p!=null){const h=p===0||p===1?0:-(p*lg(p)+(1-p)*lg(1-p)),cx=X(p),cy=Y(h);
+    out+=K('pt',`<circle cx="${cx}" cy="${cy}" r="10" class="fill-acc"/>`+T(cx+(p>.7?-16:16),cy-16,label||`H = ${f3(h)}`,'mono bold acc'+(p>.7?' end':'')),cx,cy)}
+  return out;
+}
+function coinBar(p,a,b){
+  const x=60,w=540,y=196,wa=p*w;
+  return K('coin'+p,R(x,y,wa,46,'fill-yes grow',6)+R(x+wa,y,w-wa,46,'fill-no grow late',6)+(wa>80?T(x+14,y+29,`${a} ${p}`,'mono s bold" style="fill:var(--on-tok)'):'')+((w-wa)>80?T(x+wa+14,y+29,`${b} ${+(1-p).toFixed(2)}`,'mono s bold" style="fill:var(--on-tok)'):''));
+}
+const lines=(key,x,y,arr,cls='mono',step=38)=>K(key,arr.map((l,i)=>T(x,y+i*step,l,typeof cls==='function'?cls(i):cls)).join(''));
+
+/* ---------- the script: chapters and scenes ---------- */
+const PREDICT_A={Outlook:'Rain',Temperature:'Medium',Humidity:'High',Wind:'True'};
+const PREDICT_B={Outlook:'Sunny',Temperature:'High',Humidity:'Low',Wind:'False'};
+function subsetIntro(rs,name,v){
+  const c=cnt(rs),[l1,l2]=hLines(rs);
+  return table(rs,{y:80,hi:'Outlook'})+lines('sub-'+v,760,110,[`${name}: ${rs.length} days`],'h2')+
+    lines('sub2-'+v,760,160,[`${c.y} Yes · ${c.n} No`,l1.replace('H =',`H(${name}) =`),l2.replace('  =','         =')],i=>i?'mono s':'mono bold',34)+
+    K('sub3-'+v,R(750,300,490,150,'boxacc',12)+T(774,340,'New baseline for this branch','h3 acc')+T(774,374,`H(${name}) = ${f3(ent(rs))}`,'mono l bold')+T(774,416,'Attributes left to test:','s m')+T(774,438,'Temperature · Humidity · Wind','s bold'));
+}
+
+/* ---------- random forest: 3 trees grown with the same ID3 recipe ---------- */
+function mul(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const FEATS=['Temperature','Humidity','Outlook','Wind'];
+function grow(rs,used,rnd,depth){
+  const{y}=cnt(rs),maj=y>=rs.length-y?'Yes':'No';
+  if(ent(rs)===0||depth===2)return{leaf:maj,n:rs.length,y,H:ent(rs)};
+  const pool=FEATS.filter(f=>!used.includes(f)),pick=[];
+  while(pick.length<2&&pool.length)pick.push(pool.splice(Math.floor(rnd()*pool.length),1)[0]);
+  const gs=pick.map(a=>({a,g:ent(rs)-info(rs,a)})),best=gs.reduce((b,x)=>x.g>b.g?x:b);
+  if(best.g<1e-9)return{leaf:maj,n:rs.length,y,cands:gs,H:ent(rs)};
+  const kids=parts(rs,best.a).map(p=>({v:p.v,node:grow(p.rows,[...used,best.a],rnd,depth+1)}));
+  if(kids.every(k=>k.node.leaf&&k.node.leaf===kids[0].node.leaf))return{leaf:kids[0].node.leaf,n:rs.length,y,cands:gs,H:ent(rs)};
+  return{attr:best.a,cands:gs,H:ent(rs),n:rs.length,y,kids};
+}
+const FOREST=(()=>{const rnd=mul(39),out=[];for(let k=0;k<3;k++){const s=Array.from({length:14},()=>1+Math.floor(rnd()*14)).sort((a,b)=>a-b);const rs=s.map(i=>ALL[i-1]);out.push({s,rs,t:grow(rs,[],rnd,0)})}return out})();
+const RF_DAY={Outlook:'Sunny',Temperature:'Medium',Humidity:'High',Wind:'True'};
+const predT=(t,d)=>{const path=[t];while(!t.leaf){const child=t.kids.find(k=>k.v===d[t.attr]);if(!child)return{vote:t.y>=t.n-t.y?'Yes':'No',path};t=child.node;path.push(t)}return{vote:t.leaf,path}};
+const STEPS_RF=['Random subsets','Train one tree each','Each tree predicts','Majority vote'];
+function stripRF(active){let s='';STEPS_RF.forEach((t,i)=>{const x=40+i*303,on=i+1===active,done=i+1<active;
+  s+=R(x,12,293,34,'chip '+(on?'on':done?'done':''),17)+`<text x="${x+16}" y="29.5" class="chip-t ${on?'on':''}" dominant-baseline="central">${i+1}  ${t}</text>`});return K('stripRF',s)}
+const nameList=a=>a.length>1?a.slice(0,-1).join(', ')+' and '+a[a.length-1]:a.join('');
+
+/* lay a forest tree out by leaf slots inside [x0, x0+w] */
+function ftree(k,x0,w,y0,dy,o={}){
+  const t=FOREST[k].t,nodes=[],leaves=n=>n.leaf?1:n.kids.reduce((s,c)=>s+leaves(c.node),0),slot=w/leaves(t);
+  let next=0;
+  (function place(n,depth,id,lab,ci){
+    let x;
+    if(n.leaf){x=x0+slot*(next+.5);next++}
+    else{const xs=n.kids.map((c,i)=>place(c.node,depth+1,id+'-'+c.v,c.v,i));x=(Math.min(...xs)+Math.max(...xs))/2;n.kids.forEach(c=>{nodes.find(q=>q.id===id+'-'+c.v).px=x})}
+    nodes.push({n,id,x,y:y0+depth*dy,depth,lab,ci});return x})(t,0,`f${k}`,'',0);
+  const route=o.day?predT(t,o.day).path:[],on=new Set(route.slice(0,(o.pathDepth??9)+1)),maxD=o.maxDepth??9;
+  let s='';
+  nodes.filter(q=>q.depth>0&&q.depth<=maxD).forEach(q=>{const hit=on.has(q.n),py=y0+(q.depth-1)*dy+18,cy=q.y-(q.n.leaf?15:18),tt=q.ci%2?.74:.5,mx=q.px+(q.x-q.px)*tt,my=py+(cy-py)*tt,lw=q.lab.length*7+10;
+    s+=K(`fe-${q.id}`,`<line x1="${q.px}" y1="${py}" x2="${q.x}" y2="${cy}" pathLength="1" class="edge${hit?' path':''}"/>`+R(mx-lw/2,my-10,lw,20,'elab',5)+`<text x="${mx}" y="${my+4.5}" class="mid bold ${hit?'acc':'m'}" style="font-size:12px">${q.lab}</text>`)});
+  nodes.filter(q=>q.depth<=maxD).forEach(q=>{const n=q.n,hit=on.has(n);
+    if(!n.leaf)s+=K(`fn-${q.id}`,R(q.x-60,q.y-18,120,36,'n-attr'+(hit?' path':''),9)+`<text x="${q.x}" y="${q.y+6}" class="h3 mid" style="font-size:16px">${n.attr}</text>`);
+    else{const yes=n.leaf==='Yes';s+=K(`fn-${q.id}`,R(q.x-28,q.y-15,56,30,(yes?'n-yes':'n-no')+(hit?' path':''),8)+`<text x="${q.x}" y="${q.y+5}" class="h3 mid ${yes?'yes-t':'no-t'}" style="font-size:15px">${n.leaf}</text>`+`<text x="${q.x}" y="${q.y+32}" class="mono mid m" style="font-size:11px">${n.y}/${n.n} Yes</text>`)}});
+  if(route.length){const target=nodes.find(q=>q.n===route[Math.min(o.pathDepth??9,route.length-1)]);if(target)s+=K(`traveller-${k}`,`<circle cx="${target.x}" cy="${target.y-30}" r="10" class="pulse"/><circle cx="${target.x}" cy="${target.y-30}" r="10" class="fill-acc"/>`+R(target.x-36,target.y-66,72,22,'tag',11)+`<text x="${target.x}" y="${target.y-50}" class="mid bold acc" style="font-size:13px">new day</text>`,target.x,target.y-30)}
+  return s;
+}
+function forestPanels(o={}){
+  let s='';
+  FOREST.forEach((f,k)=>{const x=40+k*413,w=387,top=70,h=560,{y}=cnt(f.rs);
+    s+=K(`fp-${k}`,R(x,top,w,h,'panel',12)+T(x+18,top+30,`Tree ${k+1}`,'h3')+T(x+w-18,top+30,`Sample ${k+1}: ${y} Yes · ${14-y} No`,'mono s m end')+
+      T(x+18,top+56,`root chosen from: ${nameList(f.t.cands.map(c=>c.a))}`,'s m'));
+    s+=ftree(k,x+8,w-16,top+130,130,{day:o.day,pathDepth:o.pathDepth,maxDepth:o.maxDepth});
+    if(o.day&&(o.pathDepth??9)>=2){const v=predT(f.t,o.day).vote;s+=K(`fv-${k}`,R(x+18,top+h-62,w-36,44,v==='Yes'?'n-yes':'n-no',10)+T(x+w/2,top+h-33,`Tree ${k+1} votes: ${v}`,'h3 mid '+(v==='Yes'?'yes-t':'no-t')))+voteChip(k,v,x+44,top+h-40)}
+  });
+  if(o.day)s+=K('fday',T(1240,700,'New day: Sunny · Medium · High humidity · Wind True','s m end'));
+  return s;
+}
+const sTok=(k,j,id,x,y)=>K(`b${k}-${j}`,`<circle cx="${x}" cy="${y}" r="14" class="tk ${byId(id).Play==='Yes'?'yes':'no'}"/><circle cx="${x}" cy="${y}" r="14" fill="url(#shine)"/><text x="${x}" y="${y+0.5}" class="tk-t" style="font-size:13px">${id}</text>`,x,y).replace('data-k=',`data-origin="r${id}" data-k=`);
+function sampleRows(n){
+  let s=K('rf-orig',T(40,96,'Original training data: 14 days','h3'))+ALL.map((r,i)=>tok(r.id,58+i*38,128,14)).join('');
+  FOREST.slice(0,n).forEach((f,k)=>{const y=236+k*112,ids=f.s,out=ALL.map(r=>r.id).filter(i=>!ids.includes(i)),rep=[...new Set(ids)].filter(i=>ids.filter(j=>j===i).length>1);
+    s+=K(`rf-sl-${k}`,T(40,y-34,`Sample ${k+1}`,'h3')+T(140,y-34,'14 random draws, with replacement','s m'));
+    ids.forEach((id,j)=>{s+=sTok(k,j,id,58+j*38,y)});
+    s+=K(`rf-so-${k}`,T(620,y-6,`repeated: ${rep.map(i=>i+'×'+ids.filter(j=>j===i).length).join(', ')}`,'mono s')+T(620,y+18,`left out: ${out.join(', ')}`,'mono s m'));
+  });
+  return s;
+}
+function treeOneDetail(full){
+  const f=FOREST[0],t=f.t,{y}=cnt(f.rs);
+  let s=K('t1a',T(40,96,'Tree 1 is trained on Sample 1 only','h2'))+f.s.map((id,j)=>sTok(0,j,id,58+j*38,140)).join('');
+  s+=K('t1b',T(40,200,`H(Sample 1) = ${f3(t.H)}   (${y} Yes · ${14-y} No)`,'mono'));
+  s+=K('t1c',R(40,222,560,58+t.cands.length*30,'panel',10)+T(58,250,'Root: 2 features picked at random (of 4)','s bold m')+t.cands.map((c,i)=>{const win=c.a===t.attr,yy=282+i*30;return T(58,yy,c.a,'h3'+(win?' acc':''))+R(200,yy-14,Math.max(3,c.g/t.H*230),16,(win?'bar-w':'bar-m')+' grow',4)+T(582,yy,`gain ${f3(c.g)}${win?' ✓':''}`,'mono s end'+(win?' acc bold':''))}).join(''));
+  if(full){const rows=[];
+    (function walk(n){if(!n.kids)return;n.kids.forEach(c=>{const m=c.node,where=`${n.attr} = ${c.v}`;
+      if(m.attr)rows.push([where,`picked ${nameList(m.cands.map(q=>q.a))} → ${m.attr} wins (gain ${f3(m.cands.find(q=>q.a===m.attr).g)})`]);
+      else rows.push([where,m.H===0?`pure (${m.y}/${m.n} Yes) → leaf ${m.leaf}`:`mixed (${m.y}/${m.n} Yes) → majority leaf ${m.leaf}`]);walk(m)})})(t);
+    s+=K('t1d',T(40,370,'Then every branch, same recipe:','h3')+rows.map((r,i)=>T(40,404+i*30,r[0],'mono s bold')+T(250,404+i*30,r[1],'s')).join(''))}
+  s+=ftree(0,660,580,190,170,{maxDepth:full?9:0});
+  return s;
+}
+function votesView(){
+  const vs=FOREST.map(f=>predT(f.t,RF_DAY).vote),ny=vs.filter(v=>v==='Yes').length,nn=3-ny,fin=nn>ny?'No':'Yes';
+  let s=K('vday',T(40,96,'New day: Outlook = Sunny · Temperature = Medium · Humidity = High · Wind = True','h3'));
+  vs.forEach((v,k)=>{s+=K(`fv-${k}`,R(40+k*413,130,387,90,v==='Yes'?'n-yes':'n-no',12)+T(40+k*413+193,166,`Tree ${k+1}`,'h3 mid')+T(40+k*413+193,202,`votes ${v}`,'h2 mid '+(v==='Yes'?'yes-t':'no-t')))});
+  s+=K('vtally',T(40,280,'Count the votes','h3')+T(40,322,'No','h3 no-t')+R(100,304,nn*200,26,'fill-no grow',5)+T(112+nn*200,323,`${nn} vote${nn===1?'':'s'}`,'mono bold')+T(40,362,'Yes','h3 yes-t')+R(100,344,ny*200,26,'fill-yes grow',5)+T(112+ny*200,363,`${ny} vote${ny===1?'':'s'}`,'mono bold'));
+  s+=K('vfinal',R(40,410,1200,92,'boxacc win',12)+T(64,452,`Random forest prediction: ${fin}  (majority vote, ${Math.max(ny,nn)} of 3 trees)`,'h2 acc')+T(64,484,'With 1000 trees it is the same idea: every tree votes once and the class with the most votes wins.','s m'));
+  s+=K('vdt',T(40,560,'Check: the single decision tree from part 1 gives the same answer for this day (Sunny → Humidity = High → No).','m'));
+  vs.forEach((v,k)=>{s+=voteChip(k,v,860+k*100,330)});
+  s+=K('vote-connect',T(960,280,'Independent votes → one forest answer','s mid m')+`<path d="M860 352C860 385,960 375,960 405" pathLength="1" class="edge"/><path d="M960 352V405" pathLength="1" class="edge"/><path d="M1060 352C1060 385,960 375,960 405" pathLength="1" class="edge"/>`);
+  return s;
+}
+function voteChip(k,v,x,y){return K(`vote-chip-${k}`,`<circle cx="${x}" cy="${y}" r="20" class="${v==='Yes'?'fill-yes':'fill-no'}"/><circle cx="${x}" cy="${y}" r="20" fill="url(#shine)"/>`+T(x,y+5,v,'tk-t s'),x,y)}
+function rfIntro(){
+  let s=K('ri-h',T(40,96,'Random forest = many decision trees that vote','h2')+T(40,126,'From the slides: an ensemble model. Bagging is the ensemble method, a decision tree is the individual model.','s m'));
+  s+=K('ri-d',R(40,300,190,120,'boxacc',12)+T(135,354,'Training data','h3 mid')+T(135,382,'14 days','mono s mid'));
+  [0,1,2].forEach(k=>{const y=180+k*150;
+    s+=K(`ri-r${k}`,`<path d="M230 360C262 360,258 ${y+40},290 ${y+40}" pathLength="1" class="edge" marker-end="url(#arw)"/>`+R(296,y,180,80,'panel',10)+T(386,y+34,`Sample ${k+1}`,'h3 mid')+T(386,y+58,'random rows','s m mid')+
+      `<line x1="476" y1="${y+40}" x2="540" y2="${y+40}" pathLength="1" class="edge" marker-end="url(#arw)"/>`+R(546,y,200,80,'n-attr',10)+T(646,y+34,`Decision tree ${k+1}`,'h3 mid')+T(646,y+58,'random features','s m mid')+
+      `<line x1="746" y1="${y+40}" x2="806" y2="${y+40}" pathLength="1" class="edge" marker-end="url(#arw)"/>`+R(812,y,150,80,'panel',10)+T(887,y+34,'prediction','h3 mid')+T(887,y+58,'Yes / No','s m mid')+
+      `<path d="M962 ${y+40}C994 ${y+40},990 360,1020 360" pathLength="1" class="edge" marker-end="url(#arw)"/>`)});
+  s+=K('ri-v',R(1026,300,214,120,'boxacc',12)+T(1133,354,'Majority vote','h3 mid acc')+T(1133,382,'final prediction','s mid m'));
+  s+=K('ri-l',T(386,670,'1. bootstrap samples','s m mid')+T(646,670,'2. grow decision trees','s m mid')+T(887,670,'3. each predicts','s m mid')+T(1133,670,'4. aggregate the votes','s m mid'));
+  return s;
+}
+function compareView(){
+  const rows=[['Model','One decision tree','Many decision trees (an ensemble), e.g. 1000'],['Training data','All 14 days','Each tree gets its own random sample (bootstrap)'],['Features per split','All remaining attributes','A random subset, e.g. 2 of 4 (slides: 5 of 10)'],['How a split is chosen','Highest information gain (ID3)','Best split among randomly selected features'],['Prediction','Follow one path to a leaf','Every tree predicts, majority vote wins'],['Strength','Easy to read and explain','Usually more stable; harder to explain']];
+  let s=K('cmp-h',T(40,96,'Decision tree vs random forest','h2'))+K('cmp-th',R(40,116,1200,40,'thead',8)+T(320,142,'Decision tree','h3')+T(780,142,'Random forest','h3 acc'));
+  rows.forEach((r,i)=>{const y=160+i*56;s+=K(`cmp-${i}`,`<line x1="40" x2="1240" y1="${y+56}" y2="${y+56}" class="rowline"/>`+T(60,y+34,r[0],'bold')+T(320,y+34,r[1],'')+T(780,y+34,r[2],i===3?'acc bold':''))});
+  s+=K('cmp-c',R(40,516,1200,92,'boxacc',12)+T(64,556,'The connection: a random forest is made of decision trees.','h3 acc')+T(64,586,'Here we use entropy-based teaching trees. Standard random forests commonly use CART trees with binary splits.','s'));
+  return s;
+}
+
+const CH=[
+ {t:'The task',scenes:[
+  {step:0,say:'In this video we build a decision tree by hand with the ID3 algorithm from the slides, using entropy and information gain. Every step is worked out with real numbers.',
+   draw:()=>heroTree()+K('title',T(640,262,'ID3 · ENTROPY · INFORMATION GAIN','mono s acc mid bold')+T(640,330,'How a decision tree is built','h1 mid')+T(640,378,'One worked example from the slides: 14 days of weather → do we play tennis?','mid m'))+ALL.map((r,i)=>tok(r.id,640-13*24+i*48,470,16)).join('')},
+  {step:0,say:'This is the training data from the slides: 14 days. Each day has four attributes, Temperature, Humidity, Outlook and Wind, and a label called Play that is Yes or No. Green circles are Yes days, red circles are No days.',
+   draw:()=>table(ALL,{y:80})+lines('task1',760,120,['Inputs (attributes)'],'h3')+lines('task1b',760,150,['Temperature · Humidity · Outlook · Wind'],'')+lines('task2',760,220,['Target (label)'],'h3')+K('task2b',T(760,252,'Play =','')+`<circle cx="830" cy="246" r="11" class="tk yes"/>`+T(848,252,'Yes','yes-t bold')+`<circle cx="910" cy="246" r="11" class="tk no"/>`+T(928,252,'No','no-t bold'))+lines('task3',760,320,['The question'],'h3')+lines('task3b',760,352,['Which attribute should the tree test first,','and what comes after it?'],'',28)},
+  {step:0,say:'ID3 repeats one recipe at every node. Compute the entropy of the class. Compute the weighted entropy for each attribute. Compute the information gain. The attribute with the highest gain becomes the node. Repeat on every branch that is still mixed, and a branch with entropy zero becomes a leaf.',
+   draw:()=>table(ALL,{y:80})+K('road',T(760,108,'The ID3 recipe (from the slides)','h3 acc')+[['Class entropy','How mixed is the Play column? H(S)'],['Weighted entropy','Split by an attribute, average the branch entropies'],['Information gain','Gain = H(S) − I(attribute)'],['Pick highest gain','That attribute becomes the node'],['Repeat on impure branches','Branches with entropy > 0 go back to step 1'],['Pure → leaf','Entropy 0 means one class only: make a leaf']].map(([a,b],i)=>`<circle cx="776" cy="${150+i*76}" r="16" class="fill-acc"/>`+`<text x="776" y="${150+i*76}" class="tk-t" style="font-size:15px">${i+1}</text>`+T(806,150+i*76-2,a,'h3')+T(806,150+i*76+22,b,'s m')).join(''))},
+ ]},
+ {t:'The big picture: from data to tree',scenes:[
+  {step:1,say:'Here is the whole process first; the details follow. All 14 days start together in one node. They are mixed, 9 Yes and 5 No, so the entropy is 0.940. The tree has to decide which question to ask first.',
+   draw:()=>strip(1)+treeView({root:'pend'})},
+  {step:4,say:'ID3 computes the information gain of every attribute and picks the highest. Outlook wins with 0.247, so Outlook becomes the root node. The days flow down the Sunny, Overcast and Rain branches.',
+   draw:()=>strip(4)+treeView({cands:'root'})},
+  {step:5,say:'Overcast is pure, all Yes, so it becomes a leaf. Sunny is still mixed, so ID3 repeats the gain calculation using only the 5 Sunny days. Humidity wins with 0.971.',
+   draw:()=>strip(5)+treeView({over:'leaf',cands:'sunny'})},
+  {step:5,say:'Humidity splits the Sunny days into pure groups, and they become leaves. Next come the 5 Rain days: Wind wins with 0.971.',
+   draw:()=>strip(5)+treeView({over:'leaf',sunny:'split',cands:'rain'})},
+  {step:6,say:'Wind splits the Rain days into pure groups. Every leaf is now pure, so the tree is finished. The next chapters show where each of these numbers comes from, step by step.',
+   draw:()=>strip(6)+treeView({over:'leaf',sunny:'split',rain:'split'})},
+ ]},
+ {t:'Entropy: measuring impurity',scenes:[
+  {step:1,say:'To choose a split we need a number for how mixed a group is. ID3 uses entropy: H equals minus the sum, over the classes, of p times log base 2 of p, where p is the share of each class.',
+   draw:()=>strip(1)+lines('en-h',40,108,['Entropy = impurity of a group'],'h2')+lines('en-f',40,160,['H = −Σ pᵢ · log₂(pᵢ)'],'mono xl bold acc')+lines('en-r',40,300,['• maximum when all classes are equally represented','• zero when only one class is present'],'',38)+curve(null)},
+  {step:1,say:'A fair coin: heads and tails each 0.5. Log base 2 of 0.5 is minus 1, so H equals 1 bit. That is the maximum. Impurity is highest when the classes are equally represented.',
+   draw:()=>strip(1)+lines('en-h',40,108,['Entropy = impurity of a group'],'h2')+lines('en-f2',40,160,['Fair coin'],'h3')+coinBar(.5,'heads','tails')+lines('en-c1',40,300,['H = −(0.5·log₂0.5 + 0.5·log₂0.5)','  = −(0.5·(−1) + 0.5·(−1))','  = 1 bit   ← maximum'],i=>i===2?'mono bold acc':'mono')+curve(.5,'fair coin: H = 1')},
+  {step:1,say:'An unfair coin that lands heads 80 percent of the time is easier to predict. H equals 0.258 plus 0.464, which is 0.722 bits.',
+   draw:()=>strip(1)+lines('en-h',40,108,['Entropy = impurity of a group'],'h2')+lines('en-f3',40,160,['Unfair coin: P(heads) = 0.8'],'h3')+coinBar(.8,'heads','tails')+lines('en-c2',40,300,['H = −(0.8·log₂0.8 + 0.2·log₂0.2)','  = −(0.8·(−0.322) + 0.2·(−2.322))','  = 0.258 + 0.464','  = 0.722 bits'],i=>i===3?'mono bold acc':'mono')+curve(.8,'H = 0.722')},
+  {step:1,say:'If only one class is present, there is no uncertainty at all. Log base 2 of 1 is 0, so the entropy is 0. A group with entropy 0 is pure, and in a tree it becomes a leaf.',
+   draw:()=>strip(1)+lines('en-h',40,108,['Entropy = impurity of a group'],'h2')+lines('en-f4',40,160,['Only one class: P(heads) = 1'],'h3')+coinBar(1,'heads','tails')+lines('en-c3',40,300,['H = −(1·log₂1) = −(1·0)','  = 0   ← pure group → leaf'],i=>i===1?'mono bold yes-t':'mono')+curve(1,'pure: H = 0')},
+  {step:1,say:'A calculator tip from the slides: most calculators have no log base 2 key, so use log base 10 of x divided by log base 10 of 2. For a 40 to 60 split this gives an entropy of 0.971. Remember that number, it comes back soon.',
+   draw:()=>strip(1)+lines('en-h',40,108,['Calculator tip: log₂ with the log key'],'h2')+lines('en-f5',40,160,['A 40 / 60 group: p = 0.4 and 0.6'],'h3')+coinBar(.4,'Yes','No')+lines('en-c4',40,300,['log₂(0.4) = log₁₀(0.4) / log₁₀(2)','          = −0.398 / 0.301 = −1.322','log₂(0.6) = −0.222 / 0.301 = −0.737','H = 0.4·1.322 + 0.6·0.737','  = 0.529 + 0.442 = 0.971'],i=>i===4?'mono bold acc':'mono',38)+curve(.4,'H = 0.971')},
+ ]},
+ {t:'Step 1 · Entropy of the whole set',scenes:[
+  {step:1,say:'Step 1. Before splitting anything, measure how mixed the whole set S is. Look only at the Play column.',
+   draw:()=>strip(1)+table(ALL,{y:80,hi:'Play'})+lines('s1a',760,120,['Whole set S = all 14 days'],'h2')+lines('s1b',760,160,['Only the Play column matters for H(S).'],'m')},
+  {step:1,say:'Count the labels: 9 days are Yes and 5 are No. The share of Yes is 9 over 14, which is 0.643. The share of No is 5 over 14, which is 0.357.',
+   draw:()=>strip(1)+table(ALL,{y:80,hi:'Play',noTok:true,dim:true})+piles()},
+  {step:1,say:'Put the shares into the entropy formula. Log base 2 of 0.643 is minus 0.637 and log base 2 of 0.357 is minus 1.485. The two terms are 0.410 and 0.531, so H of S is 0.940.',
+   draw:()=>strip(1)+table(ALL,{y:80,hi:'Play',noTok:true,dim:true})+piles()+rootCalc()},
+  {step:1,say:'The slides call this I, no partition: 0.940 bits. It is the baseline. A good split should bring this number down as much as possible.',
+   draw:()=>strip(1)+table(ALL,{y:80,hi:'Play',noTok:true,dim:true})+piles()+rootCalc()+K('s1box',R(760,520,480,92,'boxacc',12)+T(784,558,'I(no partition) = H(S) = 0.940','mono l bold acc')+T(784,590,'the baseline every split is compared against','s m'))},
+ ]},
+ {t:'Step 2 · Split by Outlook',scenes:[
+  {step:2,say:'Step 2. Try splitting the data by one attribute. We start with Outlook, the attribute the slides work through. It has three values: Sunny, Overcast and Rain.',
+   draw:()=>strip(2)+table(ALL,{y:80,hi:'Outlook'})+lines('o0',760,120,['Split by Outlook'],'h2')+lines('o0b',760,160,['3 values → 3 branches:','Sunny · Overcast · Rain'],'',30)},
+  {step:2,say:'Send each day down the branch for its Outlook value. Sunny gets days 1, 2, 4, 10 and 12. Overcast gets 6, 9, 13 and 14. Rain gets 3, 5, 7, 8 and 11.',
+   draw:()=>strip(2)+splitView(ALL,'Outlook')},
+  {step:2,say:'Now the entropy of each branch. Overcast has 4 Yes and 0 No. Only one class, so its entropy is 0. This branch is already pure.',
+   draw:()=>strip(2)+splitView(ALL,'Outlook',{showH:['Overcast']})},
+  {step:2,say:'Sunny has 2 Yes and 3 No. H equals 0.529 plus 0.442, which is 0.971 bits. Quite mixed.',
+   draw:()=>strip(2)+splitView(ALL,'Outlook',{showH:['Overcast','Sunny']})},
+  {step:2,say:'Rain has 3 Yes and 2 No, the mirror image of Sunny, so its entropy is also 0.971.',
+   draw:()=>strip(2)+splitView(ALL,'Outlook',{showH:true})},
+ ]},
+ {t:'Step 2 · Weighted entropy',scenes:[
+  {step:2,say:'Bigger branches should count more, so weight each branch by its share of the days. Sunny holds 5 of the 14 days, Overcast 4 of 14, and Rain 5 of 14.',
+   draw:()=>strip(2)+splitView(ALL,'Outlook',{showH:true,showP:true})},
+  {step:2,say:'The weighted sum is I of Outlook: 5 fourteenths times 0.971, plus 4 fourteenths times 0, plus 5 fourteenths times 0.971. That leaves 0.694 bits of impurity after splitting by Outlook. The slides print 0.693; computed directly from the table, the weighted entropy rounds to 0.694 and the gain to 0.247.',
+   draw:()=>strip(2)+splitView(ALL,'Outlook',{showH:true,showP:true,showI:true})},
+ ]},
+ {t:'Step 3 · Information gain',scenes:[
+  {step:3,say:'Information gain is how much the split reduced the entropy: 0.940 before, 0.694 after. Gain of Outlook equals 0.940 minus 0.694, which is about 0.247. The blue part of the bar is the gain.',
+   draw:()=>strip(3)+splitView(ALL,'Outlook',{showH:true,showP:true,showI:true,showGain:true})},
+ ]},
+ {t:'Steps 2–4 · Compare all attributes',scenes:[
+  {step:3,say:'Repeat the same calculations for every other attribute. Temperature: High has 2 Yes and 2 No, Medium 3 Yes and 1 No, Low 4 Yes and 2 No. The weighted entropy is 0.911, so the gain is only 0.029.',
+   draw:()=>strip(3)+splitView(ALL,'Temperature',{showH:true,showP:true,showI:true,showGain:true})},
+  {step:3,say:'Humidity: High has 2 and 2, Medium 3 Yes and 2 No, Low 4 Yes and 1 No. Weighted entropy 0.890, gain 0.050.',
+   draw:()=>strip(3)+splitView(ALL,'Humidity',{showH:true,showP:true,showI:true,showGain:true})},
+  {step:3,say:'Wind: False has 6 Yes and 2 No, True has 3 Yes and 3 No. Weighted entropy 0.892, gain 0.048.',
+   draw:()=>strip(3)+splitView(ALL,'Wind',{showH:true,showP:true,showI:true,showGain:true})},
+  {step:4,say:'Line the gains up. Outlook has by far the highest information gain, 0.247, so Outlook becomes the root node: the first question the tree asks. The slides list 0.102 for Humidity, which does not match this table. With this 14-row table it computes to 0.050, and Outlook wins either way.',
+   draw:()=>strip(4)+gainsChart(ALL,['Temperature','Humidity','Outlook','Wind'],'S','Note: the slides print Gain(Humidity) = 0.102. With the 14-row table in the slides it is 0.050. Outlook wins either way.')},
+ ]},
+ {t:'Step 4 · Grow the tree',scenes:[
+  {step:4,say:'Create the root node, Outlook, with one branch per value, and send the days down the branches.',
+   draw:()=>strip(4)+treeView({cands:'root'})},
+  {step:6,say:'Check each branch. Overcast has entropy 0 and all its days are Yes, so it becomes a leaf that predicts Yes. Sunny and Rain still have entropy 0.971, so ID3 repeats the whole process on each of them.',
+   draw:()=>strip(6)+treeView({over:'leaf'})},
+ ]},
+ {t:'Step 5 · Repeat on the Sunny branch',scenes:[
+  {step:5,say:'Take only the 5 Sunny days: 2 Yes and 3 No, so their entropy is 0.971. This is the new baseline. Outlook is already used, so we test Temperature, Humidity and Wind.',
+   draw:()=>strip(5)+subsetIntro(SUNNY,'S(Sunny)','s')},
+  {step:5,say:'Temperature on the Sunny days: High is 0 Yes and 2 No, Medium is 1 and 1, Low is 1 Yes. Weighted entropy 0.400, gain 0.571.',
+   draw:()=>strip(5)+splitView(SUNNY,'Temperature',{name:'S(Sunny)',showH:true,showP:true,showI:true,showGain:true})},
+  {step:5,say:'Humidity: High is 2 No, Medium is 1 No, Low is 2 Yes. Every branch is pure, so the weighted entropy is 0 and the gain is the full 0.971.',
+   draw:()=>strip(5)+splitView(SUNNY,'Humidity',{name:'S(Sunny)',showH:true,showP:true,showI:true,showGain:true})},
+  {step:5,say:'Wind: False is 1 Yes and 2 No, True is 1 and 1. Weighted entropy 0.951, gain only 0.020.',
+   draw:()=>strip(5)+splitView(SUNNY,'Wind',{name:'S(Sunny)',showH:true,showP:true,showI:true,showGain:true})},
+  {step:4,say:'Humidity has the highest gain on the Sunny branch, so it becomes the node under Sunny.',
+   draw:()=>strip(4)+gainsChart(SUNNY,['Temperature','Humidity','Wind'],'S(Sunny)')},
+  {step:6,say:'All three Humidity branches are pure, so each one becomes a leaf. High and Medium predict No, Low predicts Yes. The Sunny side of the tree is finished.',
+   draw:()=>strip(6)+treeView({over:'leaf',sunny:'split',cands:'sunny'})},
+ ]},
+ {t:'Step 5 · Repeat on the Rain branch',scenes:[
+  {step:5,say:'Now the 5 Rain days: 3 Yes and 2 No, entropy 0.971. Again we test Temperature, Humidity and Wind.',
+   draw:()=>strip(5)+subsetIntro(RAIN,'S(Rain)','r')},
+  {step:5,say:'Temperature on the Rain days: Low is 2 Yes and 2 No, Medium is 1 Yes. Weighted entropy 0.800, gain 0.171.',
+   draw:()=>strip(5)+splitView(RAIN,'Temperature',{name:'S(Rain)',showH:true,showP:true,showI:true,showGain:true})},
+  {step:5,say:'Humidity: High is 1 Yes, Medium is 2 Yes and 1 No, Low is 1 No. Weighted entropy 0.551, gain 0.420.',
+   draw:()=>strip(5)+splitView(RAIN,'Humidity',{name:'S(Rain)',showH:true,showP:true,showI:true,showGain:true})},
+  {step:5,say:'Wind: every calm day is Yes and every windy day is No. Both branches are pure, so the gain is the full 0.971.',
+   draw:()=>strip(5)+splitView(RAIN,'Wind',{name:'S(Rain)',showH:true,showP:true,showI:true,showGain:true})},
+  {step:4,say:'Wind wins on the Rain branch, so it becomes the node under Rain.',
+   draw:()=>strip(4)+gainsChart(RAIN,['Temperature','Humidity','Wind'],'S(Rain)')},
+  {step:6,say:'Both Wind branches are pure. Wind False becomes a Yes leaf and Wind True becomes a No leaf.',
+   draw:()=>strip(6)+treeView({over:'leaf',sunny:'split',rain:'split',cands:'rain'})},
+ ]},
+ {t:'Step 6 · Stop: the final tree',scenes:[
+  {step:6,say:'Every leaf now has entropy 0, so there is nothing left to split and ID3 stops. This is the final tree, the same one shown in the slides. Temperature was never used, because it never had the best gain.',
+   draw:()=>strip(6)+treeView({over:'leaf',sunny:'split',rain:'split'})},
+  {step:6,say:'Real data is rarely this clean. The slides list three more reasons to stop: no attribute reaches a minimum information gain, the tree reaches a maximum depth, or a node holds fewer than a set number of examples. These are optional practical rules beyond basic ID3, which also stops when no unused attributes remain and predicts the majority class.',
+   draw:()=>strip(6)+K('stop',T(40,100,'When to stop in real data','h2')+T(40,132,'Optional practical stopping rules (beyond basic ID3):','m')+[['Gain too small','No attribute reaches a minimum','information gain threshold.'],['Tree too deep','A maximum depth is reached.','Bigger trees are harder to interpret.'],['Too few examples','The node holds fewer than a','set number of examples.']].map(([a,b,c],i)=>R(40+i*408,170,384,170,'panel',12)+T(64+i*408,214,a,'h3 acc')+T(64+i*408,252,b,'')+T(64+i*408,278,c,'')).join(''))+K('stop2',R(40,380,1200,90,'boxacc',12)+T(64,420,'In our example every leaf reached entropy 0, so rule 6 (pure → leaf) was enough.','h3 acc')+T(64,450,'Mixed leaves would predict the majority class of their days.','s m'))},
+ ]},
+ {t:'Using the tree',scenes:[
+  {step:null,say:'To classify a new day, start at the root and follow the edges. A new day: Rain, Medium temperature, High humidity and windy. Outlook is Rain, so take the Rain branch. Wind is True, so the prediction is No: no tennis.',
+   draw:()=>treeView({over:'leaf',sunny:'split',rain:'split',path:['root','rain','rT']})+dayCard(PREDICT_A,['Outlook','Wind'],'No')},
+  {step:null,say:'Another day: Sunny with Low humidity. Outlook is Sunny, then Humidity is Low, so the tree predicts Yes. Only the attributes on the path are checked.',
+   draw:()=>treeView({over:'leaf',sunny:'split',rain:'split',path:['root','sunny','sL']})+dayCard(PREDICT_B,['Outlook','Humidity'],'Yes',978)},
+  {step:null,say:'Recap. Entropy measures how mixed a group is. Information gain measures how much a split reduces it. ID3 always splits on the attribute with the highest gain, and repeats on each branch until every branch is pure.',
+   draw:()=>K('recap',T(40,100,'Recap: every number in this tree','h2')+[['S (14 days)','H = 0.940','Outlook','0.247'],['S(Sunny) (5 days)','H = 0.971','Humidity','0.971'],['S(Rain) (5 days)','H = 0.971','Wind','0.971'],['S(Overcast) (4 days)','H = 0','leaf: Yes','none']].map((r,i)=>{const y=150+i*72;return R(40,y,1200,58,i%2?'panel':'thead',10)+T(64,y+36,r[0],'h3')+T(420,y+36,r[1],'mono')+T(640,y+36,i===3?'result →':'best split →','s m')+T(780,y+36,r[2],'h3 acc')+T(1000,y+36,r[3]==='none'?'already pure':`gain ${r[3]}`,'mono s'+(r[3]==='none'?' yes-t':' acc'))}).join('')+T(40,470,'Entropy = how mixed a group is.   Gain = how much a split reduces it.','h3')+T(40,506,'ID3 picks the highest gain; stop at purity or when no attributes remain.','m'))},
+ ]},
+ {t:'Random forest: the idea',scenes:[
+  {step:null,say:'Part 2: random forests. A random forest is an ensemble of many decision trees whose answers are combined. It uses bagging: each tree is trained on its own random sample of the data, every tree makes a prediction, and the forest takes the majority vote.',
+   draw:()=>rfIntro()},
+ ]},
+ {t:'RF Step 1 · Random subsets',scenes:[
+  {step:null,say:'Step 1: make random subsets of the training data. We draw 14 days from our 14 at random, with replacement. Some days are picked two or three times and some are not picked at all. This is called a bootstrap sample.',
+   draw:()=>stripRF(1)+sampleRows(1)},
+  {step:null,say:'Repeat this for every tree. Here we build a small forest of 3 trees, so we draw 3 samples; the slides use 1000. Each sample is a slightly different version of the same data.',
+   draw:()=>stripRF(1)+sampleRows(3)},
+ ]},
+ {t:'RF Step 2 · Train a tree on each subset',scenes:[
+  {step:null,say:'Step 2: train one decision tree per sample with the same ID3 recipe from part 1: entropy, information gain, best split. There is one change. At each split the tree compares only a random subset of the features, here 2 of the 4. For the root of Tree 1 it got Humidity and Outlook, and Outlook has the higher gain.',
+   draw:()=>stripRF(2)+treeOneDetail(false)},
+  {step:null,say:'The tree keeps growing the same way. Every branch gets its own random pair of features and the highest gain wins. Pure branches become leaves. Here the trees stop at depth 2, and a mixed node predicts its majority class.',
+   draw:()=>stripRF(2)+treeOneDetail(true)},
+  {step:null,say:'Trees 2 and 3 are trained the same way on their own samples. Each tree saw different data and different random features, so the three trees are different: their roots are Outlook, Temperature and Wind.',
+   draw:()=>stripRF(2)+forestPanels()},
+ ]},
+ {t:'RF Steps 3–4 · Predict and vote',scenes:[
+  {step:null,say:'Step 3: each tree predicts a new day independently. The day is Sunny, Medium temperature, High humidity and windy. Follow the highlighted path in each tree: Tree 1 says No, Tree 2 says Yes, Tree 3 says No.',
+   draw:()=>stripRF(3)+forestPanels({day:RF_DAY})},
+  {step:null,say:'Step 4: the final prediction is the majority vote. No has 2 votes and Yes has 1, so the random forest predicts No. Voting combines their answers; it does not guarantee a correct prediction.',
+   draw:()=>stripRF(4)+votesView()},
+ ]},
+ {t:'Decision tree vs random forest',scenes:[
+  {step:null,say:'How are they connected? A random forest is built from decision trees, and each tree is grown with exactly the entropy and information gain steps from part 1. The forest adds randomness in the data and in the features, then combines the trees by voting. A forest often reduces variance, but better accuracy is not guaranteed.',
+   draw:()=>compareView()},
+ ]},
+];
+
+function heroTree(){
+  const e=(x1,y1,x2,y2)=>`<path d="M${x1} ${y1}C${x1} ${(y1+y2)/2},${x2} ${(y1+y2)/2},${x2} ${y2}" pathLength="1" class="edge"/>`;
+  return K('hero',e(640,96,560,150)+e(640,96,720,150)+e(720,178,680,196)+e(720,178,760,196)+
+    R(596,64,88,32,'n-attr',9)+`<text x="640" y="85" class="mid bold" style="font-size:14px">Outlook?</text>`+
+    R(526,150,68,28,'n-yes',8)+`<text x="560" y="169" class="mid bold yes-t" style="font-size:13px">Yes</text>`+
+    R(680,150,80,28,'n-attr',8)+`<text x="720" y="169" class="mid bold" style="font-size:13px">Wind?</text>`+
+    `<circle cx="680" cy="200" r="7" class="fill-yes"/><circle cx="760" cy="200" r="7" class="fill-no"/>`);
+}
+function piles(){
+  const ys=ALL.filter(r=>r.Play==='Yes'),ns=ALL.filter(r=>r.Play==='No');
+  return K('pl',T(760,112,'Yes: 9 days','h3 yes-t')+T(1020,112,'No: 5 days','h3 no-t')+T(760,250,'p(Yes) = 9/14 = 0.643','mono s')+T(1020,250,'p(No) = 5/14 = 0.357','mono s'))+
+    ys.map((r,j)=>tok(r.id,778+(j%5)*38,146+Math.floor(j/5)*38,14)).join('')+ns.map((r,j)=>tok(r.id,1038+(j%5)*38,146,14)).join('');
+}
+function rootCalc(){
+  const ty=-(9/14)*lg(9/14),tn=-(5/14)*lg(5/14);
+  return lines('rc',760,310,['H(S) = −(9/14)log₂(9/14) − (5/14)log₂(5/14)','     = −0.643·(−0.637) − 0.357·(−1.485)',`     = ${f3(ty)} + ${f3(tn)}`,`     ≈ ${f3(ty+tn)}`],i=>i===3?'mono bold acc l':'mono s',40);
+}
+
+/* ---------- player ---------- */
+
+// Add movement checkpoints before showing completed paths and trees.
+const useChapter=CH.find(c=>c.t==='Using the tree');
+useChapter.scenes.unshift(
+ {step:null,say:'New day enters the root: Outlook = Rain.',draw:()=>treeView({over:'leaf',sunny:'split',rain:'split',path:['root']})+dayCard(PREDICT_A,['Outlook'])+walker('root')},
+ {step:null,say:'Follow Rain. Next question: Wind = True?',draw:()=>treeView({over:'leaf',sunny:'split',rain:'split',path:['root','rain']})+dayCard(PREDICT_A,['Outlook','Wind'])+walker('rain')},
+ {step:null,say:'Follow True to the No leaf. Prediction complete.',draw:()=>treeView({over:'leaf',sunny:'split',rain:'split',path:['root','rain','rT']})+dayCard(PREDICT_A,['Outlook','Wind'],'No')+walker('rT')}
+);
+const predictChapter=CH.find(c=>c.t==='RF Steps 3–4 · Predict and vote');
+predictChapter.scenes.unshift(
+ {step:null,say:'Send the same new day to all three tree roots. The trees work independently.',draw:()=>stripRF(3)+forestPanels({day:RF_DAY,pathDepth:0})},
+ {step:null,say:'Each tree asks its own root question. The new day moves to the matching branch.',draw:()=>stripRF(3)+forestPanels({day:RF_DAY,pathDepth:1})}
+);
+const growChapter=CH.find(c=>c.t==='RF Step 2 · Train a tree on each subset');
+growChapter.scenes.splice(growChapter.scenes.length-1,0,
+ {step:null,say:'Each sample chooses its own root from its randomly selected features.',draw:()=>stripRF(2)+forestPanels({maxDepth:0})},
+ {step:null,say:'Split each sample. Repeat independently within each branch.',draw:()=>stripRF(2)+forestPanels({maxDepth:1})}
+);
+function walker(id){const[x,y]=TN[id];return K('dt-traveller',`<circle cx="${x}" cy="${y-45}" r="11" class="pulse"/><circle cx="${x}" cy="${y-45}" r="11" class="fill-acc"/>`+R(x-38,y-86,76,24,'tag',12)+`<text x="${x}" y="${y-69}" class="mid bold acc" style="font-size:14px">new day</text>`,x,y-45)}
+const SCENES=[];
+function rebuild(){SCENES.length=0;const process=$('mode').value==='process';CH.forEach((c,ci)=>c.scenes.forEach((s,si)=>{
+ if(process&&(c.t==='Entropy: measuring impurity'||c.t==='The big picture: from data to tree'||(c.t==='The task'&&si!==1)||(c.t==='Step 6 · Stop: the final tree'&&si===1)||(c.t==='Using the tree'&&si===3)))return;
+ const brief=s.say.split(/(?<=\.)\s/)[0];SCENES.push({...s,ci,si,caption:process?brief:s.say});
+}));document.querySelectorAll('.chap').forEach((b,ci)=>{b.parentElement.hidden=!SCENES.some(s=>s.ci===ci)});
+ document.querySelectorAll('.seg').forEach((b,ci)=>{b.hidden=!SCENES.some(s=>s.ci===ci)});}
+
+const $=id=>document.getElementById(id),layer=$('layer'),ghost=$('ghost'),NS='http://www.w3.org/2000/svg';
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let idx=0,playing=false,timer=null,t0=0,dur=1,speed=1,raf=0;
+
+function paint(str){
+  const tmp=document.createElementNS(NS,'g');tmp.innerHTML=str;
+  const newKeys=new Set([...tmp.querySelectorAll('[data-k]')].map(e=>e.dataset.k));
+  const prev=new Map();
+  ghost.replaceChildren();
+  [...layer.children].forEach(el=>{const k=el.dataset&&el.dataset.k;
+    if(k&&newKeys.has(k))prev.set(k,el.dataset.x!==undefined?{x:+el.dataset.x,y:+el.dataset.y}:null);
+    else ghost.appendChild(el)});
+  ghost.style.animation='none';ghost.getBoundingClientRect();ghost.style.animation='';
+  layer.replaceChildren(...tmp.childNodes);
+  let n=0;
+  layer.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k;
+    if(!prev.has(k)&&el.dataset.origin&&prev.has(el.dataset.origin))prev.set(k,prev.get(el.dataset.origin));if(!prev.has(k)){el.classList.add('enter');el.style.setProperty('--d',Math.min(n++*35,900)+'ms');return}
+    const p=prev.get(k);if(!p||reduced||el.dataset.x===undefined)return;
+    const dx=p.x-el.dataset.x,dy=p.y-el.dataset.y;if(!dx&&!dy)return;
+    el.style.transform=`translate(${dx}px,${dy}px)`;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.transition='transform 1s cubic-bezier(.6,.05,.25,1)';el.style.transform=''}))});
+}
+
+function duration(s){return $('mode').value==='process'?8500:Math.max(5000,s.say.length*62)+1200}
+function go(i){
+  idx=Math.max(0,Math.min(SCENES.length-1,i));const s=SCENES[idx];
+  paint(s.draw());
+  const inCh=SCENES.filter(q=>q.ci===s.ci),pos=inCh.indexOf(s)+1;
+  ['capCh','capSay'].forEach(id=>{const el=$(id);el.classList.remove('swap');void el.offsetWidth;el.classList.add('swap')});
+  $('capCh').textContent=`${s.ci+1}. ${CH[s.ci].t}`;
+  $('capN').textContent=inCh.length>1?`${pos} of ${inCh.length}`:'';
+  $('capSay').textContent=s.caption;
+  $('counter').textContent=`Scene ${idx+1} / ${SCENES.length}`;
+  document.querySelectorAll('.chap').forEach((b,j)=>{b.classList.toggle('on',j===s.ci);b.classList.toggle('done',j<s.ci)});
+  try{localStorage.setItem('dtrf-scene',idx)}catch(e){}
+  schedule();
+}
+function schedule(){
+  clearTimeout(timer);cancelAnimationFrame(raf);
+  dur=duration(SCENES[idx])/speed;t0=performance.now();
+  if(playing){
+    timer=setTimeout(advance,dur);
+  }
+  tick();
+}
+function advance(){if(idx<SCENES.length-1)go(idx+1);else{playing=false;syncPlay();tick()}}
+function tick(){
+  const fr=playing?Math.min(1,(performance.now()-t0)/dur):0;
+  const segs=document.querySelectorAll('.seg i'),cur=SCENES[idx].ci;
+  CH.forEach((c,ci)=>{const first=SCENES.findIndex(s=>s.ci===ci),n=SCENES.filter(s=>s.ci===ci).length;if(!n){segs[ci].style.width='0%';return}
+    let v=ci<cur?1:ci>cur?0:(idx-first+fr)/n;if(ci===cur&&idx===SCENES.length-1&&!playing)v=1;segs[ci].style.width=(v*100)+'%'});
+  if(playing)raf=requestAnimationFrame(tick);
+}
+const ICONS={play:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v15l12-7.5z"/></svg>',pause:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>',replay:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/></svg>'};
+function syncPlay(){$('play').innerHTML=playing?ICONS.pause+'Pause':(idx===SCENES.length-1?ICONS.replay+'Replay':ICONS.play+'Play')}
+function toggle(){
+  if(!playing&&idx===SCENES.length-1){playing=true;syncPlay();go(0);return}
+  playing=!playing;syncPlay();schedule();
+}
+
+CH.forEach((c,ci)=>{
+  const b=document.createElement('button');b.className='seg';b.title=c.t;b.setAttribute('aria-label','Jump to chapter '+(ci+1)+': '+c.t);b.innerHTML='<i></i>';
+  b.onclick=()=>go(SCENES.findIndex(s=>s.ci===ci));$('progress').appendChild(b);
+  const li=document.createElement('li'),cb=document.createElement('button');cb.className='chap';cb.innerHTML=`<b>${String(ci+1).padStart(2,'0')}</b><span>${c.t}</span>`;
+  cb.onclick=()=>{const i=SCENES.findIndex(s=>s.ci===ci);if(i>=0)go(i)};li.appendChild(cb);$('chapters').appendChild(li);
+});
+$('play').onclick=toggle;
+$('prev').onclick=()=>go(idx-1);
+$('next').onclick=()=>go(idx+1);
+$('speed').onchange=e=>{speed=+e.target.value;schedule()};
+$('fs').onclick=()=>{const p=$('player');try{document.fullscreenElement?document.exitFullscreen():p.requestFullscreen().catch(()=>{})}catch(e){}};
+document.addEventListener('keydown',e=>{if(e.target.closest('select'))return;
+  if(e.key===' '){e.preventDefault();toggle()}else if(e.key==='ArrowRight')go(idx+1);else if(e.key==='ArrowLeft')go(idx-1);else if(e.key==='f'||e.key==='F')$('fs').click()});
+const docEl=document.documentElement;
+try{const t=localStorage.getItem('dtrf-theme');if(t)docEl.dataset.theme=t}catch(e){}
+$('theme').onclick=()=>{const dark=docEl.dataset.theme?docEl.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches,t=dark?'light':'dark';
+  docEl.dataset.theme=t;try{localStorage.setItem('dtrf-theme',t)}catch(e){}};
+$('mode').onchange=()=>{rebuild();go(0)};rebuild();let start=0;
+go(Number.isFinite(start)?start:0);syncPlay();
+</script>
