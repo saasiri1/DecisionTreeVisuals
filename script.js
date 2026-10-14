@@ -1,203 +1,3 @@
-<!doctype html>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Decision Trees and Random Forests</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
-<style>
-/* Layout: a lecture video player — header, 16:9 animated SVG stage with narration caption, transport bar, chapter list */
-:root{
-  --bg:#EEF1EE; --surface:#FFFFFF; --stage:#FBFCFA; --ink:#18211C; --muted:#5E6A63; --line:#D5DCD6;
-  --accent:#2F5BB0; --on-accent:#FFFFFF; --yes:#23855A; --no:#CC5236; --on-tok:#FFFFFF;
-  --yes-tint:rgba(35,133,90,.14); --no-tint:rgba(204,82,54,.13); --accent-tint:rgba(47,91,176,.10);
-  --accent-2:#6B4FC8; --shadow:rgba(16,32,24,.10); --dot:#D9E0DA;
-  --display:"Familjen Grotesk","Segoe UI",system-ui,sans-serif;
-  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
-  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
-}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0E1311; --surface:#151C18; --stage:#111714; --ink:#E4EBE6; --muted:#97A49C; --line:#29332D;
-  --accent:#8EAEF0; --on-accent:#0E1311; --yes:#53C38D; --no:#EF8567; --on-tok:#0E1311;
-  --yes-tint:rgba(83,195,141,.17); --no-tint:rgba(239,133,103,.16); --accent-tint:rgba(142,174,240,.12);
-  --accent-2:#B9A2F7; --shadow:rgba(0,0,0,.45); --dot:#1D2621;
-  color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0E1311; --surface:#151C18; --stage:#111714; --ink:#E4EBE6; --muted:#97A49C; --line:#29332D;
-  --accent:#8EAEF0; --on-accent:#0E1311; --yes:#53C38D; --no:#EF8567; --on-tok:#0E1311;
-  --yes-tint:rgba(83,195,141,.17); --no-tint:rgba(239,133,103,.16); --accent-tint:rgba(142,174,240,.12);
-  --accent-2:#B9A2F7; --shadow:rgba(0,0,0,.45); --dot:#1D2621;
-  color-scheme:dark}
-body{margin:0;min-height:100vh;color:var(--ink);font-family:var(--body);font-size:16px;
-  background:radial-gradient(1100px 520px at 8% -8%,var(--accent-tint),transparent 62%),radial-gradient(900px 460px at 104% 4%,var(--yes-tint),transparent 60%),var(--bg);background-attachment:fixed}
-.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:14px}
-header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
-.brand{display:flex;gap:14px;align-items:center}
-.logo{flex:none;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 8px 22px -8px var(--accent)}
-.hdr-r{display:flex;gap:10px;align-items:center}
-.pill{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
-.eyebrow{font:600 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
-h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,3vw,32px);margin:4px 0 0;text-wrap:balance;letter-spacing:-.01em}
-.counter{font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
-.player{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 1px 2px var(--shadow),0 18px 48px -18px var(--shadow)}
-#stage{display:block;width:100%;height:auto;max-height:76vh;background:var(--stage)}
-.caption{border-top:1px solid var(--line);padding:14px 22px 16px 26px;min-height:6.6em;display:flex;flex-direction:column;gap:6px;position:relative}
-.caption::before{content:"";position:absolute;left:0;top:14px;bottom:16px;width:4px;border-radius:0 4px 4px 0;background:linear-gradient(var(--accent),var(--accent-2))}
-.cap-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
-.cap-n{font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.cap-say.swap,.cap-ch.swap{animation:capIn .55s cubic-bezier(.2,.7,.2,1) both}
-@keyframes capIn{from{opacity:0;transform:translateY(6px)}}
-.cap-ch{font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
-.cap-say{font-size:clamp(15px,1.6vw,19px);line-height:1.55;max-width:75ch;margin:0}
-.player:fullscreen{display:flex;flex-direction:column;justify-content:center;border-radius:0;border:0}
-.player:fullscreen #stage{max-height:calc(100vh - 170px)}
-.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
-.btn{font:600 14px var(--body);padding:8px 14px;border-radius:10px;transition:border-color .15s,background .15s,transform .1s;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
-.btn:hover{border-color:var(--accent)}
-.btn:active{transform:translateY(1px)}
-.btn svg{width:16px;height:16px;flex:none}
-.btn:focus-visible,.chap:focus-visible,select:focus-visible,.seg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:var(--on-accent);min-width:110px;justify-content:center;box-shadow:0 6px 16px -8px var(--accent)}
-.btn.primary:hover{filter:brightness(1.08)}
-.btn.icon{padding:8px 10px}
-.btn[aria-pressed="true"]{background:var(--accent-tint);border-color:var(--accent);color:var(--accent)}
-.progress{flex:1 1 220px;display:flex;gap:3px;height:8px;min-width:0}
-.seg{flex:1;background:var(--line);border-radius:4px;position:relative;overflow:hidden;cursor:pointer;border:0;padding:0;transition:transform .15s}
-.seg:hover{transform:scaleY(1.6)}
-.seg[hidden]{display:none}
-.seg i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--accent),var(--accent-2));width:0}
-select{font:500 14px var(--body);padding:7px 8px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
-.chapters{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;list-style:none;margin:0;padding:0;counter-reset:ch}
-.chap{width:100%;text-align:left;display:flex;gap:10px;align-items:baseline;font:500 14px var(--body);padding:9px 12px;border-radius:10px;transition:border-color .15s,background .15s;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
-.chap b{font:600 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
-.chap.on{border-color:var(--accent);background:var(--accent-tint)}
-.chap.on b{color:var(--accent)}
-.chap:hover{border-color:var(--accent)}
-.chap.done b{color:var(--yes)}
-.chap.done b::after{content:" ✓"}
-.note{font-size:14px;color:var(--muted);line-height:1.5;max-width:90ch;margin:0}
-.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding-top:16px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
-.foot a{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-weight:600}
-.foot a:hover{text-decoration:underline}
-.foot a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-kbd{font:500 12px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 4px}
-
-/* SVG stage */
-#stage text{white-space:pre;fill:var(--ink);font-family:var(--body);font-size:18px}
-#stage .h1{font-family:var(--display);font-weight:700;font-size:54px;letter-spacing:-.5px}
-#stage .h2{font-family:var(--display);font-weight:600;font-size:27px}
-#stage .h3{font-family:var(--display);font-weight:600;font-size:20px}
-#stage .mono{font-family:var(--mono);font-size:18px}
-#stage .s{font-size:15px}
-#stage .l{font-size:22px}
-#stage .xl{font-size:30px}
-#stage .bold{font-weight:600}
-#stage .m{fill:var(--muted)}
-#stage .acc{fill:var(--accent)}
-#stage .yes-t{fill:var(--yes)}
-#stage .no-t{fill:var(--no)}
-#stage .mid{text-anchor:middle}
-#stage .end{text-anchor:end}
-#stage .tk.yes{fill:var(--yes)} #stage .tk.no{fill:var(--no)}
-#stage .tk{stroke:var(--stage);stroke-width:1.5}
-.dot{fill:var(--dot)}
-.g-a{stop-color:var(--accent)} .g-b{stop-color:var(--accent-2)}
-#sh feDropShadow{flood-color:var(--shadow);flood-opacity:1}
-#stage .tk-t{fill:var(--on-tok);font-family:var(--mono);font-weight:600;text-anchor:middle;dominant-baseline:central}
-.chip{fill:none;stroke:var(--line)} .chip.on{fill:var(--accent);stroke:var(--accent)} .chip.done{fill:var(--accent-tint);stroke:none}
-#stage .chip-t{font-size:14px;font-weight:600;fill:var(--muted)} #stage .chip-t.on{fill:var(--on-accent)}
-.thead{fill:var(--accent-tint)} .rowline{stroke:var(--line);stroke-width:1}
-.colhi{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1.5}
-.panel{fill:var(--surface);stroke:var(--line);filter:url(#sh)}
-.bucket{fill:var(--surface);stroke:var(--line);stroke-width:1.5;filter:url(#sh)}
-.badge{fill:var(--yes)} #stage .badge-t{fill:var(--on-tok);font-size:13px;font-weight:600}
-.bucket.pure{stroke:var(--yes);stroke-width:2}
-.boxacc{fill:color-mix(in srgb,var(--accent) 10%,var(--surface));stroke:var(--accent);stroke-width:2;filter:url(#sh)}
-.axis{stroke:var(--muted);stroke-width:1.2;fill:none} .grid{stroke:var(--line);stroke-width:1}
-.curve{stroke:var(--accent);stroke-width:3;fill:none}
-.fill-m{fill:var(--muted)} .fill-yes{fill:var(--yes)} .fill-no{fill:var(--no)} .fill-acc{fill:var(--accent)}
-.mtr-base{fill:var(--line)} .mtr-after{fill:var(--muted)} .mtr-gain{fill:url(#gainGrad)}
-.bar-m{fill:var(--muted);opacity:.55} .bar-w{fill:url(#gainGrad)}
-.edge{stroke:var(--muted);stroke-width:2;fill:none;stroke-linecap:round} .edge.path{stroke:var(--accent);stroke-width:5;filter:url(#glow)}
-.flow{fill:none;stroke:var(--on-accent);stroke-width:2;stroke-linecap:round;stroke-dasharray:3 11;opacity:.9;animation:flow .9s linear infinite}
-@keyframes flow{to{stroke-dashoffset:-14}}
-.pulse{fill:none;stroke:var(--accent);stroke-width:2.5;transform-box:fill-box;transform-origin:center;animation:pulse 1.6s ease-out infinite}
-@keyframes pulse{from{transform:scale(1);opacity:.85}to{transform:scale(2.6);opacity:0}}
-.tag{fill:var(--surface);stroke:var(--accent);stroke-width:1.2}
-.elab{fill:var(--stage)}
-.n-attr{fill:var(--surface);stroke:var(--ink);stroke-width:2;filter:url(#sh)}
-.n-attr.path{stroke:var(--accent);stroke-width:4}
-.n-pend{fill:var(--stage);stroke:var(--muted);stroke-width:2;stroke-dasharray:7 5}
-.n-yes{fill:color-mix(in srgb,var(--yes) 14%,var(--surface));stroke:var(--yes);stroke-width:2;filter:url(#sh)} .n-no{fill:color-mix(in srgb,var(--no) 13%,var(--surface));stroke:var(--no);stroke-width:2;filter:url(#sh)}
-.n-yes.path,.n-no.path{stroke-width:5}
-.dash{stroke:var(--muted);stroke-dasharray:5 5;stroke-width:1.5;fill:none}
-#layer [data-k].enter{animation:enter .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0ms)}
-@keyframes enter{from{opacity:0;transform:translateY(10px)}}
-#layer .enter .edge[pathLength]{stroke-dasharray:1 1;stroke-dashoffset:1;animation:draw .9s cubic-bezier(.4,0,.2,1) forwards;animation-delay:calc(var(--d,0ms) + 120ms)}
-@keyframes draw{to{stroke-dashoffset:0}}
-#layer .enter .grow{transform-box:fill-box;transform-origin:0 50%;animation:grow 1s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d,0ms) + 250ms)}
-#layer .enter .grow.late{animation-delay:calc(var(--d,0ms) + 1150ms)}
-@keyframes grow{from{transform:scaleX(0)}}
-#layer .enter .win{animation:win 1.4s ease-in-out 2;animation-delay:calc(var(--d,0ms) + 700ms)}
-@keyframes win{50%{stroke-width:6}}
-#ghost{animation:fadeout .35s ease both;pointer-events:none}
-@keyframes fadeout{to{opacity:0}}
-@media (prefers-reduced-motion: reduce){#layer [data-k].enter,#layer .enter .grow,#layer .enter .win,.flow,.pulse,.cap-say.swap,.cap-ch.swap{animation:none}#layer .enter .edge[pathLength]{animation:none;stroke-dasharray:none}#ghost{display:none}}
-@media (max-width:600px){.caption{padding:12px 14px 12px 18px}.bar{padding:10px}.logo{width:42px;height:42px}}
-</style>
-
-<div class="wrap">
-  <header>
-    <div class="brand">
-      <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="2.5" width="7" height="5" rx="1.5"/><rect x="2.5" y="16.5" width="7" height="5" rx="1.5"/><rect x="14.5" y="16.5" width="7" height="5" rx="1.5"/><path d="M12 7.5v3.5M6 16.5v-2a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2"/></svg></div>
-      <div>
-        <div class="eyebrow">Chapters 2.5–2.6 · Decision Tree (ID3) · Random Forest</div>
-        <h1>From data to a decision tree, then to a random forest</h1>
-      </div>
-    </div>
-    <div class="hdr-r">
-      <div class="pill" id="counter">Scene 1 / 1</div>
-      <button class="btn icon" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
-    </div>
-  </header>
-
-  <section class="player" id="player" aria-label="Animated walkthrough">
-    <svg id="stage" viewBox="0 0 1280 720" role="img" aria-labelledby="capSay">
-      <defs>
-        <filter id="sh" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="5"/></filter>
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <radialGradient id="shine" cx="35%" cy="28%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></radialGradient>
-        <linearGradient id="gainGrad" x1="0" x2="1"><stop offset="0" class="g-a"/><stop offset="1" class="g-b"/></linearGradient>
-        <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="1.1" class="dot"/></pattern>
-        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fill-m"/></marker></defs>
-      <rect width="1280" height="720" fill="url(#dots)"/>
-      <g id="ghost"></g>
-      <g id="layer"></g>
-    </svg>
-    <div class="caption">
-      <div class="cap-top"><div class="cap-ch" id="capCh"></div><div class="cap-n" id="capN"></div></div>
-      <p class="cap-say" id="capSay" aria-live="polite"></p>
-    </div>
-    <div class="bar">
-      <button class="btn" id="prev" aria-label="Previous scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
-      <button class="btn primary" id="play">▶ Play</button>
-      <button class="btn" id="next" aria-label="Next scene">Next<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
-      <label class="counter" for="mode">Lesson</label>
-      <select id="mode"><option value="process" selected>Process animation</option><option value="detail">Full calculations</option></select>
-      <div class="progress" id="progress"></div>
-      <label class="counter" for="speed">Speed</label>
-      <select id="speed"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select>
-      <button class="btn icon" id="fs" title="Fullscreen (F)" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-    </div>
-  </section>
-
-  <ol class="chapters" id="chapters"></ol>
-  <footer class="foot">
-    <span>© 2026 Sultan Asiri. All rights reserved.</span>
-    <a href="https://saasiri1.github.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>saasiri1.github.io</a>
-  </footer>
-</div>
-
-<script>
 /* ---------- data from the slides (Decision Tree: Where to Split the Data?) ---------- */
 const RAW=[[1,'High','Medium','Sunny','False','No'],[2,'High','High','Sunny','True','No'],[3,'Low','Low','Rain','True','No'],[4,'Medium','High','Sunny','False','No'],[5,'Low','Medium','Rain','True','No'],[6,'High','Medium','Overcast','False','Yes'],[7,'Low','High','Rain','False','Yes'],[8,'Low','Medium','Rain','False','Yes'],[9,'Low','Low','Overcast','True','Yes'],[10,'Low','Low','Sunny','False','Yes'],[11,'Medium','Medium','Rain','False','Yes'],[12,'Medium','Low','Sunny','True','Yes'],[13,'Medium','High','Overcast','True','Yes'],[14,'High','Low','Overcast','False','Yes']];
 const ALL=RAW.map(r=>({id:r[0],Temperature:r[1],Humidity:r[2],Outlook:r[3],Wind:r[4],Play:r[5]}));
@@ -318,7 +118,7 @@ function treeView(st){
   EDGES.filter(([p,c])=>vis.has(p)&&vis.has(c)).forEach(([p,c,l])=>{
     const[x1,y1]=TN[p],[x2,y2]=TN[c],on=path.includes(p)&&path.includes(c),y1b=y1+size(p)[1]/2,y2t=y2-size(c)[1]/2,mx=(x1+x2)/2,my=(y1b+y2t)/2,lw=l.length*9+18;
     const d=`M${x1} ${y1b}C${x1} ${my},${x2} ${my},${x2} ${y2t}`;
-    s+=K(`e-${c}`,`<path d="${d}" pathLength="1" class="edge${on?' path':''}"/>`+(on?`<path d="${d}" class="flow"/>`:'')+R(mx-lw/2,my-13,lw,26,'elab',6)+T(mx,my+6,l,'s mid bold'+(on?' acc':' m')))});
+    s+=K(`e-${c}`,`<path d="${d}" pathLength="1" class="edge${on?' path':''}"/>`+(on?`<path d="${d}" class="flow"/>`:'')+R(mx-lw/2,my-13,lw,26,'elab',6)+T(mx,my+6,l,'s mid bold'+(on?' acc':' m'))) });
   [...vis].forEach(id=>{const[x,y]=TN[id],[w,h]=size(id),k=kind(id),on=path.includes(id);let inner;
     if(k==='attr')inner=R(x-w/2,y-h/2,w,h,'n-attr'+(on?' path':''),12)+T(x,y+8,label[id],'h3 mid')+T(x+w/2+12,y+6,gainTxt[id],'mono s acc');
     else if(k==='pend'){const H=ent(ROWS[id]);inner=R(x-w/2,y-h/2,w,h,'n-pend',12)+T(x,y-3,id==='root'?'S: all 14 days':H?'still mixed':'pure','s mid m bold')+T(x,y+17,`H = ${f3(H)}`,'mono s mid'+(H?'':' yes-t'))}
@@ -337,7 +137,7 @@ function candBox(rs,attrs,x,y,title){
   const base=ent(rs),it=attrs.map(a=>({a,g:base-info(rs,a)})),best=it.reduce((b,v)=>v.g>b.g?v:b),w=300,h=48+it.length*26;
   let s=R(x,y,w,h,'panel',10)+T(x+14,y+26,title,'s bold m');
   it.forEach((v,i)=>{const yy=y+56+i*26,win=v===best;
-    s+=T(x+14,yy,v.a,'s'+(win?' acc bold':''))+R(x+122,yy-11,Math.max(2,v.g/base*90),12,(win?'bar-w':'bar-m')+' grow',3)+T(x+w-14,yy,f3(v.g)+(win?' ✓':'  '),'mono s end'+(win?' acc bold':''))});
+    s+=T(x+14,yy,v.a,'s'+(win?' acc bold':''))+R(x+122,yy-11,Math.max(2,v.g/base*90),12,(win?'bar-w':'bar-m')+' grow',3)+T(x+w-14,yy,f3(v.g)+(win?' ✓':''),'mono s end'+(win?' acc bold':''))});
   return K('cb-'+title,s);
 }
 
@@ -412,10 +212,10 @@ function ftree(k,x0,w,y0,dy,o={}){
   const route=o.day?predT(t,o.day).path:[],on=new Set(route.slice(0,(o.pathDepth??9)+1)),maxD=o.maxDepth??9;
   let s='';
   nodes.filter(q=>q.depth>0&&q.depth<=maxD).forEach(q=>{const hit=on.has(q.n),py=y0+(q.depth-1)*dy+18,cy=q.y-(q.n.leaf?15:18),tt=q.ci%2?.74:.5,mx=q.px+(q.x-q.px)*tt,my=py+(cy-py)*tt,lw=q.lab.length*7+10;
-    s+=K(`fe-${q.id}`,`<line x1="${q.px}" y1="${py}" x2="${q.x}" y2="${cy}" pathLength="1" class="edge${hit?' path':''}"/>`+R(mx-lw/2,my-10,lw,20,'elab',5)+`<text x="${mx}" y="${my+4.5}" class="mid bold ${hit?'acc':'m'}" style="font-size:12px">${q.lab}</text>`)});
+    s+=K(`fe-${q.id}`,`<line x1="${q.px}" y1="${py}" x2="${q.x}" y2="${cy}" pathLength="1" class="edge${hit?' path':''}"/>`+R(mx-lw/2,my-10,lw,20,'elab',5)+`<text x="${mx}" y="${my+4.5}" class="mid bold ${hit?'acc':'m'}" style="font-size:12px">${q.lab}</text>`) });
   nodes.filter(q=>q.depth<=maxD).forEach(q=>{const n=q.n,hit=on.has(n);
     if(!n.leaf)s+=K(`fn-${q.id}`,R(q.x-60,q.y-18,120,36,'n-attr'+(hit?' path':''),9)+`<text x="${q.x}" y="${q.y+6}" class="h3 mid" style="font-size:16px">${n.attr}</text>`);
-    else{const yes=n.leaf==='Yes';s+=K(`fn-${q.id}`,R(q.x-28,q.y-15,56,30,(yes?'n-yes':'n-no')+(hit?' path':''),8)+`<text x="${q.x}" y="${q.y+5}" class="h3 mid ${yes?'yes-t':'no-t'}" style="font-size:15px">${n.leaf}</text>`+`<text x="${q.x}" y="${q.y+32}" class="mono mid m" style="font-size:11px">${n.y}/${n.n} Yes</text>`)}});
+    else{const yes=n.leaf==='Yes';s+=K(`fn-${q.id}`,R(q.x-28,q.y-15,56,30,(yes?'n-yes':'n-no')+(hit?' path':''),8)+`<text x="${q.x}" y="${q.y+5}" class="h3 mid ${yes?'yes-t':'no-t'}" style="font-size:15px">${n.leaf}</text>`+`<text x="${q.x}" y="${q.y+32}" class="mono mid m" style="font-size:11px">${n.y}/${n.n} Yes</text>`)} });
   if(route.length){const target=nodes.find(q=>q.n===route[Math.min(o.pathDepth??9,route.length-1)]);if(target)s+=K(`traveller-${k}`,`<circle cx="${target.x}" cy="${target.y-30}" r="10" class="pulse"/><circle cx="${target.x}" cy="${target.y-30}" r="10" class="fill-acc"/>`+R(target.x-36,target.y-66,72,22,'tag',11)+`<text x="${target.x}" y="${target.y-50}" class="mid bold acc" style="font-size:13px">new day</text>`,target.x,target.y-30)}
   return s;
 }
@@ -456,7 +256,7 @@ function treeOneDetail(full){
 function votesView(){
   const vs=FOREST.map(f=>predT(f.t,RF_DAY).vote),ny=vs.filter(v=>v==='Yes').length,nn=3-ny,fin=nn>ny?'No':'Yes';
   let s=K('vday',T(40,96,'New day: Outlook = Sunny · Temperature = Medium · Humidity = High · Wind = True','h3'));
-  vs.forEach((v,k)=>{s+=K(`fv-${k}`,R(40+k*413,130,387,90,v==='Yes'?'n-yes':'n-no',12)+T(40+k*413+193,166,`Tree ${k+1}`,'h3 mid')+T(40+k*413+193,202,`votes ${v}`,'h2 mid '+(v==='Yes'?'yes-t':'no-t')))});
+  vs.forEach((v,k)=>{s+=K(`fv-${k}`,R(40+k*413,130,387,90,v==='Yes'?'n-yes':'n-no',12)+T(40+k*413+193,166,`Tree ${k+1}`,'h3 mid')+T(40+k*413+193,202,`votes ${v}`,'h2 mid '+(v==='Yes'?'yes-t':'no-t'))) });
   s+=K('vtally',T(40,280,'Count the votes','h3')+T(40,322,'No','h3 no-t')+R(100,304,nn*200,26,'fill-no grow',5)+T(112+nn*200,323,`${nn} vote${nn===1?'':'s'}`,'mono bold')+T(40,362,'Yes','h3 yes-t')+R(100,344,ny*200,26,'fill-yes grow',5)+T(112+ny*200,363,`${ny} vote${ny===1?'':'s'}`,'mono bold'));
   s+=K('vfinal',R(40,410,1200,92,'boxacc win',12)+T(64,452,`Random forest prediction: ${fin}  (majority vote, ${Math.max(ny,nn)} of 3 trees)`,'h2 acc')+T(64,484,'With 1000 trees it is the same idea: every tree votes once and the class with the most votes wins.','s m'));
   s+=K('vdt',T(40,560,'Check: the single decision tree from part 1 gives the same answer for this day (Sunny → Humidity = High → No).','m'));
@@ -472,7 +272,7 @@ function rfIntro(){
     s+=K(`ri-r${k}`,`<path d="M230 360C262 360,258 ${y+40},290 ${y+40}" pathLength="1" class="edge" marker-end="url(#arw)"/>`+R(296,y,180,80,'panel',10)+T(386,y+34,`Sample ${k+1}`,'h3 mid')+T(386,y+58,'random rows','s m mid')+
       `<line x1="476" y1="${y+40}" x2="540" y2="${y+40}" pathLength="1" class="edge" marker-end="url(#arw)"/>`+R(546,y,200,80,'n-attr',10)+T(646,y+34,`Decision tree ${k+1}`,'h3 mid')+T(646,y+58,'random features','s m mid')+
       `<line x1="746" y1="${y+40}" x2="806" y2="${y+40}" pathLength="1" class="edge" marker-end="url(#arw)"/>`+R(812,y,150,80,'panel',10)+T(887,y+34,'prediction','h3 mid')+T(887,y+58,'Yes / No','s m mid')+
-      `<path d="M962 ${y+40}C994 ${y+40},990 360,1020 360" pathLength="1" class="edge" marker-end="url(#arw)"/>`)});
+      `<path d="M962 ${y+40}C994 ${y+40},990 360,1020 360" pathLength="1" class="edge" marker-end="url(#arw)"/>`) });
   s+=K('ri-v',R(1026,300,214,120,'boxacc',12)+T(1133,354,'Majority vote','h3 mid acc')+T(1133,382,'final prediction','s mid m'));
   s+=K('ri-l',T(386,670,'1. bootstrap samples','s m mid')+T(646,670,'2. grow decision trees','s m mid')+T(887,670,'3. each predicts','s m mid')+T(1133,670,'4. aggregate the votes','s m mid'));
   return s;
@@ -753,13 +553,12 @@ $('play').onclick=toggle;
 $('prev').onclick=()=>go(idx-1);
 $('next').onclick=()=>go(idx+1);
 $('speed').onchange=e=>{speed=+e.target.value;schedule()};
-$('fs').onclick=()=>{const p=$('player');try{document.fullscreenElement?document.exitFullscreen():p.requestFullscreen().catch(()=>{})}catch(e){}};
+$('fs').onclick=()=>{const p=$('player');try{document.fullscreenElement?document.exitFullscreen():p.requestFullscreen().catch(()=>{})}catch(e){} };
 document.addEventListener('keydown',e=>{if(e.target.closest('select'))return;
   if(e.key===' '){e.preventDefault();toggle()}else if(e.key==='ArrowRight')go(idx+1);else if(e.key==='ArrowLeft')go(idx-1);else if(e.key==='f'||e.key==='F')$('fs').click()});
 const docEl=document.documentElement;
 try{const t=localStorage.getItem('dtrf-theme');if(t)docEl.dataset.theme=t}catch(e){}
 $('theme').onclick=()=>{const dark=docEl.dataset.theme?docEl.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches,t=dark?'light':'dark';
-  docEl.dataset.theme=t;try{localStorage.setItem('dtrf-theme',t)}catch(e){}};
+  docEl.dataset.theme=t;try{localStorage.setItem('dtrf-theme',t)}catch(e){} };
 $('mode').onchange=()=>{rebuild();go(0)};rebuild();let start=0;
 go(Number.isFinite(start)?start:0);syncPlay();
-</script>

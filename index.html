@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision Trees and Random Forests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="2.5" width="7" height="5" rx="1.5"/><rect x="2.5" y="16.5" width="7" height="5" rx="1.5"/><rect x="14.5" y="16.5" width="7" height="5" rx="1.5"/><path d="M12 7.5v3.5M6 16.5v-2a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2"/></svg></div>
+      <div>
+        <div class="eyebrow">Chapters 2.5–2.6 · Decision Tree (ID3) · Random Forest</div>
+        <h1>From data to a decision tree, then to a random forest</h1>
+      </div>
+    </div>
+    <div class="hdr-r">
+      <div class="pill" id="counter">Scene 1 / 1</div>
+      <button class="btn icon" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
+    </div>
+  </header>
+
+  <section class="player" id="player" aria-label="Animated walkthrough">
+    <svg id="stage" viewBox="0 0 1280 720" role="img" aria-labelledby="capSay">
+      <defs>
+        <filter id="sh" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="5"/></filter>
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <radialGradient id="shine" cx="35%" cy="28%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="gainGrad" x1="0" x2="1"><stop offset="0" class="g-a"/><stop offset="1" class="g-b"/></linearGradient>
+        <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="1.1" class="dot"/></pattern>
+        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fill-m"/></marker></defs>
+      <rect width="1280" height="720" fill="url(#dots)"/>
+      <g id="ghost"></g>
+      <g id="layer"></g>
+    </svg>
+    <div class="caption">
+      <div class="cap-top"><div class="cap-ch" id="capCh"></div><div class="cap-n" id="capN"></div></div>
+      <p class="cap-say" id="capSay" aria-live="polite"></p>
+    </div>
+    <div class="bar">
+      <button class="btn" id="prev" aria-label="Previous scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
+      <button class="btn primary" id="play">▶ Play</button>
+      <button class="btn" id="next" aria-label="Next scene">Next<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <label class="counter" for="mode">Lesson</label>
+      <select id="mode"><option value="process" selected>Process animation</option><option value="detail">Full calculations</option></select>
+      <div class="progress" id="progress"></div>
+      <label class="counter" for="speed">Speed</label>
+      <select id="speed"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select>
+      <button class="btn icon" id="fs" title="Fullscreen (F)" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    </div>
+  </section>
+
+  <ol class="chapters" id="chapters"></ol>
+  <footer class="foot">
+    <span>© 2026 Sultan Asiri. All rights reserved.</span>
+    <a href="https://saasiri1.github.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>saasiri1.github.io</a>
+  </footer>
+</div>
+
+<script src="script.js" defer></script>
